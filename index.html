@@ -1864,19 +1864,32 @@ function renderSubList(){
 
     if(r.status==='covered')
       acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
-    // Show cascading class changes if any were recorded
+    // Build class changes section
     let changesNote='';
-    if(r.swapClass && typeof r.swapClass==='string' && r.swapClass.startsWith('[')) {
-      try {
-        const chs=JSON.parse(r.swapClass);
-        if(chs.length){
-          changesNote='<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Class changes:</strong> '
-            +chs.map(ch=>ch.dateKey.split('-').slice(1).join('/')+' '+ch.time+' → '+ch.instructor+(ch.format?' ('+ch.format+')':'')).join(', ')+'</div>';
-        }
-      } catch(e){}
-    } else if(r.swapClass && typeof r.swapClass==='object' && Array.isArray(r.swapClass) && r.swapClass.length){
-      changesNote='<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Class changes:</strong> '
-        +r.swapClass.map(ch=>ch.dateKey.split('-').slice(1).join('/')+' '+ch.time+' → '+ch.instructor+(ch.format?' ('+ch.format+')':'')).join(', ')+'</div>';
+    let parsedChanges=[];
+    if(r.swapClass){
+      if(typeof r.swapClass==='string'&&r.swapClass.startsWith('['))
+        try{parsedChanges=JSON.parse(r.swapClass);}catch(e){}
+      else if(Array.isArray(r.swapClass))
+        parsedChanges=r.swapClass;
+    }
+    if(parsedChanges.length){
+      const rows=parsedChanges.map(ch=>{
+        const parts=ch.dateKey.split('-');
+        const yr=parseInt(parts[0]),mo=parseInt(parts[1]),dy=parseInt(parts[2]);
+        const dow=DAYS[getDow(yr,mo,dy)];
+        const dateLabel=dow+' '+getSMo(mo)+' '+dy;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:white;border-radius:6px;border:1px solid #dde3ff;margin-bottom:4px;flex-wrap:wrap;">'
+          +'<span style="font-size:12px;font-weight:700;color:var(--dark);min-width:110px;">'+dateLabel+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);">'+ch.time+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);">→</span>'
+          +'<span style="font-size:12px;font-weight:700;color:var(--blue);">'+ch.instructor+'</span>'
+          +(ch.format?'<span style="font-size:10px;font-weight:700;padding:2px 7px;background:var(--pink-dim);color:var(--pink);border-radius:10px;">'+ch.format+'</span>':'')
+          +'</div>';
+      }).join('');
+      changesNote='<div style="margin-top:10px;padding:10px 12px;background:var(--blue-dim);border-radius:9px;border:1px solid #dde3ff;">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:7px;">🔄 CLASS CHANGES</div>'
+        +rows+'</div>';
     }
     return `<div class="rcard s-${r.status} ${isMe?'s-mine':''}">
       <div class="rc-top">
