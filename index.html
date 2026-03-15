@@ -1247,17 +1247,20 @@ async function dbGetAll() {
   return res.json();
 }
 async function dbSave(req) {
-  const res = await fetch(SHEET_URL, {
-    method:'POST',
-    body: JSON.stringify({action:'save', ...req})
+  // Use GET with URL params to avoid CORS issues with Apps Script
+  const params = new URLSearchParams({action:'save'});
+  Object.entries(req).forEach(([k,v]) => {
+    params.append(k, v === null ? '' : typeof v === 'object' ? JSON.stringify(v) : v);
   });
+  const res = await fetch(`${SHEET_URL}?${params.toString()}`);
   return res.json();
 }
 async function dbUpdate(fields) {
-  const res = await fetch(SHEET_URL, {
-    method:'POST',
-    body: JSON.stringify({action:'update', ...fields})
+  const params = new URLSearchParams({action:'update'});
+  Object.entries(fields).forEach(([k,v]) => {
+    params.append(k, v === null ? '' : v);
   });
+  const res = await fetch(`${SHEET_URL}?${params.toString()}`);
   return res.json();
 }
 
