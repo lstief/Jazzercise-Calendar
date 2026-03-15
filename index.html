@@ -1235,11 +1235,56 @@ let glofoxItems = [
   {id:4,text:'Confirm Apr 18 opens — ALT45 + ALT need instructors',done:false},
 ];
 
-let subRequests = [
-  {id:1,date:'Thu Mar 12',dateKey:'2026-3-12',time:'7:30am',format:'ALT45',requester:'Trisha',status:'open',reason:'Out of town / travel',notes:'Alternate format — someone comfortable with ALT preferred',swapOffered:false,swapClass:null,claimedBy:null,createdAt:Date.now()-172800000},
-  {id:2,date:'Wed Mar 18',dateKey:'2026-3-18',time:'4:30pm',format:'CS',requester:'Karie',status:'covered',reason:'Family obligation',notes:'',swapOffered:false,swapClass:null,claimedBy:'Staci',createdAt:Date.now()-432000000},
-];
-let nextId = 3;
+// Sub requests — loaded live from Google Sheets
+let subRequests = [];
+let dbReady = false; // true once first load completes
+
+// ── GOOGLE SHEETS BACKEND ──────────────────────────────────────
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzFpJiua0VUYGmqR0jXEIz8IEeOT7KQZSAOgIwjJ41G90Lghd2mYo20l0kRxEg5nuZrtQ/exec';
+
+async function dbGetAll() {
+  const res = await fetch(`${SHEET_URL}?action=getAll`);
+  return res.json();
+}
+async function dbSave(req) {
+  const res = await fetch(SHEET_URL, {
+    method:'POST',
+    body: JSON.stringify({action:'save', ...req})
+  });
+  return res.json();
+}
+async function dbUpdate(fields) {
+  const res = await fetch(SHEET_URL, {
+    method:'POST',
+    body: JSON.stringify({action:'update', ...fields})
+  });
+  return res.json();
+}
+
+// Load all requests from the sheet and refresh the UI
+async function loadSubRequests() {
+  try {
+    showLoadingBadge(true);
+    const data = await dbGetAll();
+    if (Array.isArray(data)) {
+      subRequests = data;
+      dbReady = true;
+    }
+  } catch(e) {
+    console.error('Failed to load requests:', e);
+  } finally {
+    showLoadingBadge(false);
+    refreshBadge();
+    renderCalendar();
+    if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
+    if(document.getElementById('view-dash').classList.contains('active')) renderDash();
+  }
+}
+
+function showLoadingBadge(on) {
+  const btn = document.getElementById('notifBtn');
+  if(btn) btn.title = on ? 'Loading…' : '';
+}
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1454,10 +1499,18 @@ async function submitSubReq(){
     swapOffered:wantSwap,swapClass,
     claimedBy:null,createdAt:Date.now()
   };
+  // Save to Google Sheet
+  const btn=document.getElementById('srSubmitBtn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    const result = await dbSave(req);
+    if(result.id) req.id = result.id;
+  } catch(e) { console.error('Save failed',e); }
+  btn.disabled=false; btn.textContent='📤 Submit Sub Request';
+
   subRequests.push(req);
   addNotif('or','📤',`${currentUser} needs a sub`,`${pendingSR.time} ${pendingSR.fmt} — ${getSMo(curMonth)} ${pendingSR.d}`);
 
-  // Send SMS notification via T-Mobile gateway
   sendSmsNotification('sub_requested',{
     requester:currentUser,format:pendingSR.fmt,
     date:`${getSMo(pendingSR.month||curMonth)} ${pendingSR.d}`,time:pendingSR.time,
@@ -1466,7 +1519,6 @@ async function submitSubReq(){
 
   closeMo('subReqMo');
   refreshBadge();renderCalendar();renderMyClasses();
-  // Refresh request view if it was the entry point
   if(currentUser&&!isCoord) renderRequestMyClasses();
   showToast('✅ Sub request submitted! Text notification sent.','ok');
 }
@@ -1536,7 +1588,7 @@ function doAssign(reqId){
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   req.status='covered';req.claimedBy=name;
-  // Update schedule data directly
+  dbUpdate({id:req.id, status:'covered', claimedBy:name});
   const [yr,mo,dy]=req.dateKey.split('-').map(Number);
   const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
   const c=cls.find(x=>x.t===req.time);
@@ -1556,16 +1608,17 @@ function doClaim(reqId,isSwap){
   // Update state
   if(isSwap){
     req.status='pending';req.claimedBy=currentUser;
+    dbUpdate({id:req.id, status:'pending', claimedBy:currentUser});
     addNotif('bl','🔄',`${currentUser} offered a swap`,`${req.time} ${req.format} on ${req.date}`);
   } else {
     req.status='covered';req.claimedBy=currentUser;
+    dbUpdate({id:req.id, status:'covered', claimedBy:currentUser});
     addNotif('gr','✅',`${currentUser} will cover class`,`${req.time} ${req.format} on ${req.date}`);
   }
   closeMo('claimMo');
   refreshBadge();renderCalendar();renderMyClasses();
   if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
 
-  // Send SMS notification
   sendSmsNotification('sub_claimed',{
     claimedBy:currentUser,requester:req.requester,
     format:req.format,date:req.date,time:req.time,isSwap
@@ -1577,6 +1630,7 @@ function confirmSwap(reqId){
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   req.status='covered';
+  dbUpdate({id:req.id, status:'covered'});
   addNotif('gr','✅','Swap confirmed by coordinator',`${req.time} ${req.format} on ${req.date}`);
   refreshBadge();renderCalendar();renderSubList();renderDash();
   showToast('✅ Swap confirmed!','ok');
@@ -1585,6 +1639,7 @@ function declineSwap(reqId){
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   req.status='open';req.claimedBy=null;
+  dbUpdate({id:req.id, status:'open', claimedBy:''});
   renderSubList();renderDash();
   showToast('Swap declined — request back to open.','');
 }
@@ -2043,7 +2098,7 @@ document.getElementById('authOverlay').addEventListener('click',function(e){
 // ═══════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════
-renderCalendar();refreshBadge();refreshNotifs();
+renderCalendar();refreshBadge();refreshNotifs();loadSubRequests();
 </script>
 </body>
 </html>
