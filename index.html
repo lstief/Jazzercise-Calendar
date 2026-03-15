@@ -1248,18 +1248,21 @@ function sheetRequest(params) {
     const cbName = 'cb_' + Math.random().toString(36).slice(2);
     const timeout = setTimeout(() => {
       delete window[cbName];
+      console.log('SHEET TIMEOUT — cbName was:', cbName);
       reject(new Error('Request timed out'));
     }, 10000);
     window[cbName] = function(data) {
       clearTimeout(timeout);
       delete window[cbName];
       script.remove();
+      console.log('SHEET RESPONSE:', JSON.stringify(data).slice(0,200));
       resolve(data);
     };
     const qs = new URLSearchParams(params);
     qs.set('callback', cbName);
     const script = document.createElement('script');
     script.src = `${SHEET_URL}?${qs.toString()}`;
+    console.log('SHEET REQUEST:', script.src);
     script.onerror = () => { clearTimeout(timeout); delete window[cbName]; reject(new Error('Script load error')); };
     document.head.appendChild(script);
   });
