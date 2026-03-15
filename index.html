@@ -1511,7 +1511,7 @@ async function submitSubReq(){
     swapClass={dateKey:p.dataset.dk,time:p.dataset.t,format:p.dataset.f};
   }
   const req={
-    id:nextId++,
+    id: Date.now(), // temporary ID, replaced by sheet after save
     date:`${DAYS[getDow(pendingSR.year||curYear,pendingSR.month||curMonth,pendingSR.d)]} ${getSMo(pendingSR.month||curMonth)} ${pendingSR.d}`,
     dateKey:pendingSR.dateKey,
     time:pendingSR.time,
