@@ -1653,6 +1653,7 @@ function openClaimModal(reqId){
   openMo('claimMo');
 }
 
+function removeChangeRow(idx){var el=document.getElementById('ccr-'+idx);if(el)el.remove();}
 function addClassChangeRow(){
   const list=document.getElementById('classChangesList');
   const idx=list.children.length;
@@ -1684,7 +1685,7 @@ function addClassChangeRow(){
     +'<select id="cc-time-'+idx+'" style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'+timeOpts+'</select>'
     +'<select id="cc-instr-'+idx+'" style="flex:2;min-width:110px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;"><option value="">Instructor…</option>'+INSTRUCTORS.map(n=>'<option>'+n+'</option>').join('')+'</select>'
     +'<select id="cc-fmt-'+idx+'" style="flex:2;min-width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;"><option value="">Format (opt)</option>'+FORMAT_OPTIONS.map(f=>'<option>'+f+'</option>').join('')+'</select>'
-    +'<button onclick="document.getElementById('ccr-'+idx+'').remove()" style="background:var(--pink-dim);color:var(--pink);border:none;border-radius:5px;padding:5px 8px;cursor:pointer;font-size:12px;">✕</button>';
+    +'<button onclick="removeChangeRow('+idx+')" style="background:var(--pink-dim);color:var(--pink);border:none;border-radius:5px;padding:5px 8px;cursor:pointer;font-size:12px;">✕</button>';
   list.appendChild(row);
 }
 
