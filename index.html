@@ -1153,47 +1153,13 @@ const SCHEDULE = {
 
 };
 
-// ═══════════════════════════════════════════════════════════════
-//  SMS CONFIG — T-Mobile gateway (no backend needed)
-//  Messages arrive as texts to coordinator's phone.
-//  To add instructors later: add their number@tmomail.net (T-Mobile)
-//  or number@vtext.com (Verizon) / number@txt.att.net (AT&T)
-// ═══════════════════════════════════════════════════════════════
-const COORDINATOR_SMS = '2487972617@tmomail.net';
-
-// When you're ready to notify individual instructors,
-// add entries here: 'InstructorName': 'number@carrier-gateway.net'
-const INSTRUCTOR_SMS = {
-  // 'Trisha': '2481234567@tmomail.net',
-};
-function getSmsAddr(name) { return INSTRUCTOR_SMS[name] || COORDINATOR_SMS; }
-
-// App URL — update this when the app is hosted somewhere permanent
-const APP_URL = 'https://lstief.github.io/Jazzercise-Calendar/';
-
-function isUrgent(dateKey) {
-  // Returns true if the class date is today or tomorrow
-  const today = new Date();
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const fmt = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-  return dateKey === fmt(today) || dateKey === fmt(tomorrow);
-}
-
-function sendSmsNotification(type, data) {
-  const urgent = data.dateKey && isUrgent(data.dateKey);
-  let msg = '';
-  if (type === 'sub_requested') {
-    const prefix = urgent ? '🚨 URGENT — ' : '';
-    msg = `${prefix}JRO SUB NEEDED: ${data.requester} needs sub for ${data.format} ${data.date} ${data.time}. ${APP_URL}`;
-  } else if (type === 'sub_claimed') {
-    msg = `JRO SUB FILLED: ${data.claimedBy} will cover ${data.requester}'s ${data.format} on ${data.date} ${data.time}.${data.isSwap?' Swap pending approval.':''} ${APP_URL}`;
-  } else if (type === 'swap_confirmed') {
-    msg = `JRO SWAP CONFIRMED: ${data.format} on ${data.date} ${data.time} — approved by coordinator. ${APP_URL}`;
+// ── SILENT NOTIFICATIONS via Apps Script + Gmail ─────────────
+async function sendSmsNotification(type, data) {
+  try {
+    await sheetRequest({action:'notify', type:type, ...data});
+  } catch(e) {
+    console.log('Notification failed:', e);
   }
-  // Trim to 160 chars to stay within SMS limit
-  if (msg.length > 160) msg = msg.slice(0, 157) + '…';
-  const mailto = `mailto:${COORDINATOR_SMS}?subject=JRO&body=${encodeURIComponent(msg)}`;
-  window.open(mailto, '_blank');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1580,7 +1546,7 @@ async function submitSubReq(){
   closeMo('subReqMo');
   refreshBadge();renderCalendar();renderMyClasses();
   if(currentUser&&!isCoord) renderRequestMyClasses();
-  showToast('✅ Sub request submitted! Text notification sent.','ok');
+  showToast('✅ Sub request submitted!','ok');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1760,7 +1726,7 @@ function doAssign(reqId){
   refreshBadge();renderCalendar();renderMyClasses();
   if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
   sendSmsNotification('sub_claimed',{claimedBy:name,requester:req.requester,format:req.format,date:req.date,time:req.time,isSwap:false});
-  showToast(`✅ ${name} assigned! Text notification sent.`,'ok');
+  showToast(`✅ ${name} assigned!`,'ok');
 }
 
 function doClaim(reqId){
