@@ -1663,9 +1663,31 @@ function openClaimModal(reqId){
       <div style="border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">📋 New format (optional)</div>
         <div style="display:flex;gap:7px;align-items:center;">
-          <input type="text" id="claimNewFormat" placeholder="e.g. CS45, PSHIIT…"
-            style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;"
-            onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--border)'">
+          <select id="claimNewFormat" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
+            <option value="">— No change —</option>
+            <option value="CS">CS</option>
+            <option value="CSHIIT">CSHIIT</option>
+            <option value="CS45">CS45</option>
+            <option value="CSHIIT45">CSHIIT45</option>
+            <option value="PS">PS</option>
+            <option value="PSHIIT">PSHIIT</option>
+            <option value="PS45">PS45</option>
+            <option value="PSHIIT45">PSHIIT45</option>
+            <option value="Sculpt">Sculpt</option>
+            <option value="SculptHIIT">SculptHIIT</option>
+            <option value="Sculpt45">Sculpt45</option>
+            <option value="SculptHIIT45">SculptHIIT45</option>
+            <option value="Stretch">Stretch</option>
+            <option value="LoCS">LoCS</option>
+            <option value="LoCSHIIT">LoCSHIIT</option>
+            <option value="LoCS45">LoCS45</option>
+            <option value="LoCSHIIT45">LoCSHIIT45</option>
+            <option value="LoPS">LoPS</option>
+            <option value="LoPSHIIT">LoPSHIIT</option>
+            <option value="LoPS45">LoPS45</option>
+            <option value="LoPSHIIT45">LoPSHIIT45</option>
+            <option value="LoSculptHIIT">LoSculptHIIT</option>
+          </select>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:5px;">If the sub will teach a different format, enter it here to update the calendar</div>
       </div>
@@ -1844,10 +1866,10 @@ function renderSubList(){
         ${acts}
         ${(r.status==='covered'||(isMe&&r.status==='open'))?`
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
-          <input type="text" id="nf-${r.id}" value="${r.newFormat||''}"
-            placeholder="New format (optional)"
-            style="padding:5px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;width:160px;outline:none;"
-            onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--border)'">
+          <select id="nf-${r.id}" style="padding:5px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;max-width:165px;">
+            <option value="">— No change —</option>
+            ${['CS','CSHIIT','CS45','CSHIIT45','PS','PSHIIT','PS45','PSHIIT45','Sculpt','SculptHIIT','Sculpt45','SculptHIIT45','Stretch','LoCS','LoCSHIIT','LoCS45','LoCSHIIT45','LoPS','LoPSHIIT','LoPS45','LoPSHIIT45','LoSculptHIIT'].map(f=>`<option value="${f}" ${r.newFormat===f?'selected':''} >${f}</option>`).join('')}
+          </select>
           <button class="bsm" style="background:var(--pink-dim);color:var(--pink);white-space:nowrap;" onclick="saveNewFormat(${r.id})">Save</button>
         </div>`:''}
       </div>
