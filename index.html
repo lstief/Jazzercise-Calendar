@@ -513,17 +513,6 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
         <label>Notes (optional)</label>
         <textarea id="srNotes" placeholder="Anything helpful for a sub to know…"></textarea>
       </div>
-      <div class="fg">
-        <label>Swap offer?</label>
-        <select id="srSwapChoice" onchange="toggleSwapPicker()">
-          <option value="no">No — just need coverage</option>
-          <option value="yes">Yes — I'll swap one of my classes</option>
-        </select>
-      </div>
-      <div id="swapPicker" style="display:none" class="swap-section">
-        <h5>Choose a class to offer:</h5>
-        <div id="swapOptions"></div>
-      </div>
       <div class="divider"></div>
       <button class="btn-pri" id="srSubmitBtn" onclick="submitSubReq()">📤 Submit Sub Request</button>
     </div>
@@ -1325,12 +1314,19 @@ async function loadSubRequests() {
         date: normalizeDate(r.date),
       }));
       dbReady = true;
-      // Apply any saved newFormats to the live schedule
+      // Apply saved newFormats and class changes to the live schedule
       subRequests.filter(r=>r.newFormat&&r.dateKey).forEach(r=>{
         const [yr,mo,dy]=r.dateKey.split('-').map(Number);
         const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
         const c=cls.find(x=>x.t===r.time);
         if(c) c.f=r.newFormat;
+      });
+      // Apply cascading class changes stored in swapClass field
+      subRequests.filter(r=>r.swapClass).forEach(r=>{
+        let changes=[];
+        if(typeof r.swapClass==='string'&&r.swapClass.startsWith('[')) try{changes=JSON.parse(r.swapClass);}catch(e){}
+        else if(Array.isArray(r.swapClass)) changes=r.swapClass;
+        applyClassChanges(changes);
       });
     }
   } catch(e) {
@@ -1544,41 +1540,15 @@ function openSubReqModal(d,time,fmt,year,month){
   pendingSR={d,time,fmt,dateKey:`${y}-${m}-${d}`,year:y,month:m};
   document.getElementById('srInfo').textContent=`${getSMo(m)} ${d} · ${time} · ${fmt}`;
   document.getElementById('srNotes').value='';
-  document.getElementById('srSwapChoice').value='no';
-  document.getElementById('swapPicker').style.display='none';
-  // swap options = my other classes
-  const _m=pendingSR.month||curMonth,_y=pendingSR.year||curYear;
-  const myC=getMyClasses(_y,_m).filter(c=>!(c.day===d&&c.t===time));
-  document.getElementById('swapOptions').innerHTML=myC.length
-    ? myC.map(c=>`<div class="swap-pick" onclick="pickSwap(this)" data-dk="${c.dateKey}" data-t="${c.t}" data-f="${c.f}">
-        <span>${getSMo(_m)} ${c.day} · ${c.t}</span><small>${c.f}</small>
-      </div>`).join('')
-    : '<p style="font-size:12px;color:var(--muted);">No other classes to offer</p>';
   closeMo('dayModal');
   openMo('subReqMo');
-}
-
-function toggleSwapPicker(){
-  document.getElementById('swapPicker').style.display=
-    document.getElementById('srSwapChoice').value==='yes'?'block':'none';
-}
-function pickSwap(el){
-  document.querySelectorAll('.swap-pick').forEach(x=>x.classList.remove('sel'));
-  el.classList.add('sel');
 }
 
 async function submitSubReq(){
   if(!needId()) return;
   const notes=document.getElementById('srNotes').value.trim();
-  const wantSwap=document.getElementById('srSwapChoice').value==='yes';
-  let swapClass=null;
-  if(wantSwap){
-    const p=document.querySelector('.swap-pick.sel');
-    if(!p){showToast('Choose a class to swap or select no swap','err');return;}
-    swapClass={dateKey:p.dataset.dk,time:p.dataset.t,format:p.dataset.f};
-  }
   const req={
-    id: Date.now(), // temporary ID, replaced by sheet after save
+    id: Date.now(),
     date:`${DAYS[getDow(pendingSR.year||curYear,pendingSR.month||curMonth,pendingSR.d)]} ${getSMo(pendingSR.month||curMonth)} ${pendingSR.d}`,
     dateKey:pendingSR.dateKey,
     time:pendingSR.time,
@@ -1586,8 +1556,8 @@ async function submitSubReq(){
     requester:currentUser,
     status:'open',
     notes,
-    swapOffered:wantSwap,swapClass,
-    claimedBy:null,createdAt:Date.now()
+    swapOffered:false, swapClass:null,
+    claimedBy:null, createdAt:Date.now()
   };
   // Save to Google Sheet
   const btn=document.getElementById('srSubmitBtn');
@@ -1621,60 +1591,127 @@ function fmtOptions(selected){return '<option value="">— No change —</option
 
 const INSTRUCTORS=['Alex','Alexis','Cece','Christina','Christine M','Colleen','Danielle','Erin','Jane','Jen','Karie','Katy','Lisa','Nadia','Nicole','Staci','Stephanie D','Stephanie H','Teri','Tess','Tori','Trisha'];
 
+function buildInstructorSelect(id, exclude){
+  return '<select id="'+id+'" style="flex:1;min-width:120px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'
+    + '<option value="">Instructor…</option>'
+    + INSTRUCTORS.filter(n=>n!==exclude).map(n=>'<option value="'+n+'">'+n+'</option>').join('')
+    + '</select>';
+}
+function buildFormatSelect(id){
+  return '<select id="'+id+'" style="flex:1;min-width:110px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'
+    + '<option value="">Format (opt)</option>'
+    + FORMAT_OPTIONS.map(f=>'<option value="'+f+'">'+f+'</option>').join('')
+    + '</select>';
+}
+
+let classChanges = []; // [{dateKey, time, instructor, format}]
+
 function openClaimModal(reqId){
   if(!needId()) return;
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   pendingClaimId=reqId;
-  document.getElementById('clTitle').textContent=req.swapOffered?'Accept Swap or Cover':'Cover This Class';
+  classChanges=[];
+  document.getElementById('clTitle').textContent='Cover This Class';
   document.getElementById('clInfo').textContent=`${req.date} · ${req.time} · ${req.format} — by ${req.requester}`;
 
   const otherOptions=INSTRUCTORS.filter(n=>n!==currentUser&&n!==req.requester)
     .map(n=>`<option value="${n}">${n}</option>`).join('');
 
-  let swapHtml='';
-  if(req.swapOffered&&req.swapClass){
-    swapHtml=`<div class="swap-box" style="margin-bottom:14px;">
-      <strong>🔄 Swap offered:</strong> ${req.requester} will cover your
-      <strong>${req.swapClass.time} ${req.swapClass.format}</strong> in exchange.
-    </div>`;
-  }
-
   const html=`
-    ${swapHtml}
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="border:1.5px solid var(--green);border-radius:9px;padding:12px 14px;background:var(--green-dim);">
-        <div style="font-size:12px;font-weight:700;color:#1a9e6a;margin-bottom:8px;">✅ I'll cover it myself</div>
-        ${req.swapOffered&&req.swapClass
-          ? `<div style="display:flex;gap:7px;flex-wrap:wrap;">
-               <button class="bsm bg" onclick="doClaim(${reqId},true)">Accept + Swap</button>
-               <button class="bsm bb" onclick="doClaim(${reqId},false)">Cover (no swap)</button>
-             </div>`
-          : `<button class="bsm bg" onclick="doClaim(${reqId},false)">Claim this class</button>`
-        }
-      </div>
-      <div style="border:1.5px solid var(--blue);border-radius:9px;padding:12px 14px;background:var(--blue-dim);">
-        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px;">👤 Assign a different instructor</div>
+        <div style="font-size:12px;font-weight:700;color:#1a9e6a;margin-bottom:6px;">✅ Who is covering?</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="bsm bg" onclick="doClaim(${reqId})">I'll cover it (${currentUser})</button>
+        </div>
         <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
-          <select id="assignSelect" style="flex:1;padding:7px 10px;border:1.5px solid #dde3ff;border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
-            <option value="">Select instructor…</option>
+          <select id="assignSelect" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
+            <option value="">Assign someone else…</option>
             ${otherOptions}
           </select>
           <button class="bsm bb" onclick="doAssign(${reqId})">Assign</button>
         </div>
       </div>
       <div style="border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;">
-        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">📋 New format (optional)</div>
-        <div style="display:flex;gap:7px;align-items:center;">
-<select id="claimNewFormat" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;"><option value="">— No change —</option><option value="CS">CS</option><option value="CSHIIT">CSHIIT</option><option value="CS45">CS45</option><option value="CSHIIT45">CSHIIT45</option><option value="PS">PS</option><option value="PSHIIT">PSHIIT</option><option value="PS45">PS45</option><option value="PSHIIT45">PSHIIT45</option><option value="Sculpt">Sculpt</option><option value="SculptHIIT">SculptHIIT</option><option value="Sculpt45">Sculpt45</option><option value="SculptHIIT45">SculptHIIT45</option><option value="Stretch">Stretch</option><option value="LoCS">LoCS</option><option value="LoCSHIIT">LoCSHIIT</option><option value="LoCS45">LoCS45</option><option value="LoCSHIIT45">LoCSHIIT45</option><option value="LoPS">LoPS</option><option value="LoPSHIIT">LoPSHIIT</option><option value="LoPS45">LoPS45</option><option value="LoPSHIIT45">LoPSHIIT45</option><option value="LoSculptHIIT">LoSculptHIIT</option><option value="VSHIIT">VSHIIT</option><option value="VSHIIT45">VSHIIT45</option><option value="LoVSHIIT">LoVSHIIT</option><option value="LoVSHIIT45">LoVSHIIT45</option></select>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:5px;">If the sub will teach a different format, enter it here to update the calendar</div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;">📋 Format change for this class (optional)</div>
+        <select id="claimNewFormat" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
+          <option value="">— No change —</option>
+          ${fmtOptions('')}
+        </select>
+      </div>
+      <div style="border:1.5px solid var(--blue);border-radius:9px;padding:12px 14px;background:var(--blue-dim);">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;">🔄 Other classes changing as a result (optional)</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add any other classes that need to change so the calendar stays accurate</div>
+        <div id="classChangesList" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <button class="bsm bb" style="margin-top:8px;width:100%;" onclick="addClassChangeRow()">+ Add a class change</button>
       </div>
       <button class="bsm bgh" onclick="closeMo('claimMo')">Cancel</button>
     </div>`;
   document.getElementById('clBody').innerHTML=html;
   closeMo('dayModal');
   openMo('claimMo');
+}
+
+function addClassChangeRow(){
+  const list=document.getElementById('classChangesList');
+  const idx=list.children.length;
+  const row=document.createElement('div');
+  row.id='ccr-'+idx;
+  row.style.cssText='display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:white;border-radius:7px;padding:8px;border:1px solid #dde3ff;';
+  // Build a simple day picker for current month
+  const todayStart=new Date(); todayStart.setHours(0,0,0,0);
+  const daysInMo=getDaysInMonth(curYear,curMonth);
+  let dayOpts='<option value="">Date…</option>';
+  for(let d=1;d<=daysInMo;d++){
+    const dt=new Date(curYear,curMonth-1,d);
+    if(dt<todayStart) continue;
+    dayOpts+='<option value="'+curYear+'-'+curMonth+'-'+d+'">'+DAYS[getDow(curYear,curMonth,d)]+' '+getSMo(curMonth)+' '+d+'</option>';
+  }
+  // Also add next month days
+  let nm=curMonth+1,ny=curYear;
+  if(nm>12){nm=1;ny++;}
+  const daysNM=getDaysInMonth(ny,nm);
+  for(let d=1;d<=daysNM;d++){
+    dayOpts+='<option value="'+ny+'-'+nm+'-'+d+'">'+DAYS[getDow(ny,nm,d)]+' '+getSMo(nm)+' '+d+'</option>';
+  }
+  // Time options
+  const times=['5:30am','6:40am','7:30am','8:30am','9:45am','11:00am','1:00pm','4:30pm','5:45pm','7:00pm','7:50pm'];
+  const timeOpts='<option value="">Time…</option>'+times.map(t=>'<option>'+t+'</option>').join('');
+
+  row.innerHTML=
+    '<select id="cc-date-'+idx+'" style="flex:2;min-width:110px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'+dayOpts+'</select>'
+    +'<select id="cc-time-'+idx+'" style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'+timeOpts+'</select>'
+    +'<select id="cc-instr-'+idx+'" style="flex:2;min-width:110px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;"><option value="">Instructor…</option>'+INSTRUCTORS.map(n=>'<option>'+n+'</option>').join('')+'</select>'
+    +'<select id="cc-fmt-'+idx+'" style="flex:2;min-width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;"><option value="">Format (opt)</option>'+FORMAT_OPTIONS.map(f=>'<option>'+f+'</option>').join('')+'</select>'
+    +'<button onclick="document.getElementById('ccr-'+idx+'').remove()" style="background:var(--pink-dim);color:var(--pink);border:none;border-radius:5px;padding:5px 8px;cursor:pointer;font-size:12px;">✕</button>';
+  list.appendChild(row);
+}
+
+function collectClassChanges(){
+  const list=document.getElementById('classChangesList');
+  if(!list) return [];
+  const changes=[];
+  for(let i=0;i<list.children.length;i++){
+    const dateKey=document.getElementById('cc-date-'+i)?.value;
+    const time=document.getElementById('cc-time-'+i)?.value;
+    const instructor=document.getElementById('cc-instr-'+i)?.value;
+    const fmt=document.getElementById('cc-fmt-'+i)?.value;
+    if(dateKey&&time&&instructor) changes.push({dateKey,time,instructor,format:fmt||''});
+  }
+  return changes;
+}
+
+function applyClassChanges(changes){
+  changes.forEach(ch=>{
+    const [yr,mo,dy]=ch.dateKey.split('-').map(Number);
+    const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
+    const c=cls.find(x=>x.t===ch.time);
+    if(c){
+      c.i=ch.instructor;
+      if(ch.format) c.f=ch.format;
+    }
+  });
 }
 
 // Coordinator-only assign from day modal (no sub request exists)
@@ -1688,13 +1725,16 @@ function doAssign(reqId){
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   const assignFmt=(document.getElementById('claimNewFormat')||{}).value||'';
+  const assignChanges=collectClassChanges();
   req.status='covered';req.claimedBy=name;
   if(assignFmt) req.newFormat=assignFmt;
-  dbUpdate({id:req.id, status:'covered', claimedBy:name, newFormat:assignFmt});
+  dbUpdate({id:req.id, status:'covered', claimedBy:name, newFormat:assignFmt,
+    swapClass: assignChanges.length ? JSON.stringify(assignChanges) : ''});
   const [yr,mo,dy]=req.dateKey.split('-').map(Number);
   const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
   const c=cls.find(x=>x.t===req.time);
   if(c){c.open=false;delete c.open;c.covered=true;c.coveredBy=name;if(assignFmt)c.f=assignFmt;}
+  applyClassChanges(assignChanges);
   addNotif('gr','👤',`${name} assigned to class`,`${req.time} ${req.format} on ${req.date}`);
   closeMo('claimMo');
   refreshBadge();renderCalendar();renderMyClasses();
@@ -1703,52 +1743,33 @@ function doAssign(reqId){
   showToast(`✅ ${name} assigned! Text notification sent.`,'ok');
 }
 
-function doClaim(reqId,isSwap){
+function doClaim(reqId){
   if(!needId()) return;
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
-  // Update state
   const claimFmt=(document.getElementById('claimNewFormat')||{}).value||'';
-  if(isSwap){
-    req.status='pending';req.claimedBy=currentUser;
-    if(claimFmt) req.newFormat=claimFmt;
-    dbUpdate({id:req.id, status:'pending', claimedBy:currentUser, newFormat:claimFmt});
-    addNotif('bl','🔄',`${currentUser} offered a swap`,`${req.time} ${req.format} on ${req.date}`);
-  } else {
-    req.status='covered';req.claimedBy=currentUser;
-    if(claimFmt) req.newFormat=claimFmt;
-    dbUpdate({id:req.id, status:'covered', claimedBy:currentUser, newFormat:claimFmt});
-    if(claimFmt){const [yr,mo,dy]=req.dateKey.split('-').map(Number);const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];const c=cls.find(x=>x.t===req.time);if(c)c.f=claimFmt;}
-    addNotif('gr','✅',`${currentUser} will cover class`,`${req.time} ${req.format} on ${req.date}`);
+  const changes=collectClassChanges();
+  req.status='covered'; req.claimedBy=currentUser;
+  if(claimFmt) req.newFormat=claimFmt;
+  dbUpdate({id:req.id, status:'covered', claimedBy:currentUser, newFormat:claimFmt,
+    swapClass: changes.length ? JSON.stringify(changes) : ''});
+  if(claimFmt){
+    const [yr,mo,dy]=req.dateKey.split('-').map(Number);
+    const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
+    const c=cls.find(x=>x.t===req.time);
+    if(c) c.f=claimFmt;
   }
+  applyClassChanges(changes);
+  addNotif('gr','✅',`${currentUser} will cover class`,`${req.time} ${req.format} on ${req.date}`);
+  if(changes.length) addNotif('bl','🔄',`${changes.length} class change${changes.length>1?'s':''} applied`,'Calendar updated');
   closeMo('claimMo');
   refreshBadge();renderCalendar();renderMyClasses();
   if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
-
-  sendSmsNotification('sub_claimed',{
-    claimedBy:currentUser,requester:req.requester,
-    format:req.format,date:req.date,time:req.time,isSwap
-  });
-  showToast(`✅ ${isSwap?'Swap offered':'Class claimed'}! Text notification sent.`,'ok');
+  sendSmsNotification('sub_claimed',{claimedBy:currentUser,requester:req.requester,format:req.format,date:req.date,time:req.time,isSwap:false});
+  showToast('✅ Class claimed! Calendar updated.','ok');
 }
 
-function confirmSwap(reqId){
-  const req=subRequests.find(r=>r.id===reqId);
-  if(!req) return;
-  req.status='covered';
-  dbUpdate({id:req.id, status:'covered'});
-  addNotif('gr','✅','Swap confirmed by coordinator',`${req.time} ${req.format} on ${req.date}`);
-  refreshBadge();renderCalendar();renderSubList();renderDash();
-  showToast('✅ Swap confirmed!','ok');
-}
-function declineSwap(reqId){
-  const req=subRequests.find(r=>r.id===reqId);
-  if(!req) return;
-  req.status='open';req.claimedBy=null;
-  dbUpdate({id:req.id, status:'open', claimedBy:''});
-  renderSubList();renderDash();
-  showToast('Swap declined — request back to open.','');
-}
+// confirmSwap/declineSwap removed — swap offer no longer part of request flow
 
 function cancelSubRequest(reqId){
   if(!confirm('Cancel this sub request?')) return;
@@ -1816,19 +1837,27 @@ function renderSubList(){
       acts=`<button class="bsm bg" onclick="openClaimModal(${r.id})">✅ Claim</button>`;
     if(r.status==='open'&&!isMe&&!isUnlocked)
       acts=`<button class="bsm" style="background:var(--orange-dim);color:var(--orange);" onclick="openAuthModal()">🔒 Login to claim</button>`;
-    if(r.status==='pending'&&isCoord)
-      acts=`<button class="bsm bg" onclick="confirmSwap(${r.id})">✅ Confirm</button>
-        <button class="bsm br" onclick="declineSwap(${r.id})">✗ Decline</button>`;
+
     if(r.status==='open'&&isMe)
       acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>
         <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
-    if(r.status==='pending'&&isMe)
-      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">🔄 Swap pending</span>
-        <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
+
     if(r.status==='covered')
       acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
-    const swapNote=r.swapOffered&&r.swapClass
-      ?`<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Swap offered:</strong> ${r.swapClass.time} ${r.swapClass.format}</div>`:''
+    // Show cascading class changes if any were recorded
+    let changesNote='';
+    if(r.swapClass && typeof r.swapClass==='string' && r.swapClass.startsWith('[')) {
+      try {
+        const chs=JSON.parse(r.swapClass);
+        if(chs.length){
+          changesNote='<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Class changes:</strong> '
+            +chs.map(ch=>ch.dateKey.split('-').slice(1).join('/')+' '+ch.time+' → '+ch.instructor+(ch.format?' ('+ch.format+')':'')).join(', ')+'</div>';
+        }
+      } catch(e){}
+    } else if(r.swapClass && typeof r.swapClass==='object' && Array.isArray(r.swapClass) && r.swapClass.length){
+      changesNote='<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Class changes:</strong> '
+        +r.swapClass.map(ch=>ch.dateKey.split('-').slice(1).join('/')+' '+ch.time+' → '+ch.instructor+(ch.format?' ('+ch.format+')':'')).join(', ')+'</div>';
+    }
     return `<div class="rcard s-${r.status} ${isMe?'s-mine':''}">
       <div class="rc-top">
         <div><div class="rc-date">${r.date}</div><div class="rc-time-lbl">${r.time}</div></div>
@@ -1840,7 +1869,7 @@ function renderSubList(){
         ${r.notes?`<div class="rc-mi"><div class="rc-ml">Notes</div><div class="rc-mv" style="font-weight:700;">${r.notes}</div></div>`:''}
         ${r.claimedBy?`<div class="rc-mi"><div class="rc-ml">Claimed by</div><div class="rc-mv">${r.claimedBy}</div></div>`:''}
       </div>
-      ${swapNote}
+      ${changesNote}
       <div class="rc-acts" style="align-items:center;flex-wrap:wrap;gap:8px;">
         ${acts}
         ${(r.status==='covered'||(isMe&&r.status==='open'))?`
@@ -1922,21 +1951,8 @@ function renderDash(){
     <div class="stat-card"><div class="stat-num green">${cov}</div><div class="stat-lbl">Covered this month</div></div>
     <div class="stat-card"><div class="stat-num pink">${gPend}</div><div class="stat-lbl">Glofox updates pending</div></div>`;
 
-  const pends=subRequests.filter(r=>r.status==='pending');
-  document.getElementById('pendingApprovals').innerHTML=pends.length
-    ? pends.map(r=>`<div class="rcard s-pending">
-        <div class="rc-top"><div><div class="rc-date">${r.date}</div><div class="rc-time-lbl">${r.time} · ${r.format}</div></div>
-        <div class="sbadge sb-pending">🔄 Swap Needs Approval</div></div>
-        <div class="rc-meta">
-          <div class="rc-mi"><div class="rc-ml">Requester</div><div class="rc-mv">${r.requester}</div></div>
-          <div class="rc-mi"><div class="rc-ml">Claimed by</div><div class="rc-mv">${r.claimedBy}</div></div>
-        </div>
-        ${r.swapClass?`<div class="swap-box"><strong>Swap:</strong> ${r.requester} covers ${r.claimedBy}'s ${r.swapClass.time} ${r.swapClass.format}</div>`:''}
-        <div class="rc-acts" style="margin-top:10px;">
-          <button class="bsm bg" onclick="confirmSwap(${r.id})">✅ Confirm Swap</button>
-          <button class="bsm br" onclick="declineSwap(${r.id})">✗ Decline</button>
-        </div></div>`).join('')
-    : '<div class="empty" style="padding:16px;"><div class="ei">✅</div><p>No pending actions</p></div>';
+  // No pending approvals needed - swap flow removed
+  document.getElementById('pendingApprovals').innerHTML='<div class="empty" style="padding:16px;"><div class="ei">✅</div><p>No pending actions</p></div>';
 
   // glofox
   const autoG=subRequests.filter(r=>r.status!=='covered')
