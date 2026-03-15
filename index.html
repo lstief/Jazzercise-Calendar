@@ -510,18 +510,6 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
     </div>
     <div class="mbody">
       <div class="fg">
-        <label>Reason</label>
-        <select id="srReason">
-          <option value="">Select…</option>
-          <option>Personal appointment</option>
-          <option>Out of town / travel</option>
-          <option>Illness</option>
-          <option>Family obligation</option>
-          <option>Work conflict</option>
-          <option>Other</option>
-        </select>
-      </div>
-      <div class="fg">
         <label>Notes (optional)</label>
         <textarea id="srNotes" placeholder="Anything helpful for a sub to know…"></textarea>
       </div>
@@ -1337,6 +1325,13 @@ async function loadSubRequests() {
         date: normalizeDate(r.date),
       }));
       dbReady = true;
+      // Apply any saved newFormats to the live schedule
+      subRequests.filter(r=>r.newFormat&&r.dateKey).forEach(r=>{
+        const [yr,mo,dy]=r.dateKey.split('-').map(Number);
+        const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
+        const c=cls.find(x=>x.t===r.time);
+        if(c) c.f=r.newFormat;
+      });
     }
   } catch(e) {
     console.error('Failed to load requests:', e);
@@ -1548,7 +1543,6 @@ function openSubReqModal(d,time,fmt,year,month){
   const y=year||curYear, m=month||curMonth;
   pendingSR={d,time,fmt,dateKey:`${y}-${m}-${d}`,year:y,month:m};
   document.getElementById('srInfo').textContent=`${getSMo(m)} ${d} · ${time} · ${fmt}`;
-  document.getElementById('srReason').value='';
   document.getElementById('srNotes').value='';
   document.getElementById('srSwapChoice').value='no';
   document.getElementById('swapPicker').style.display='none';
@@ -1575,8 +1569,6 @@ function pickSwap(el){
 
 async function submitSubReq(){
   if(!needId()) return;
-  const reason=document.getElementById('srReason').value;
-  if(!reason){showToast('Please select a reason','err');return;}
   const notes=document.getElementById('srNotes').value.trim();
   const wantSwap=document.getElementById('srSwapChoice').value==='yes';
   let swapClass=null;
@@ -1593,7 +1585,7 @@ async function submitSubReq(){
     format:pendingSR.fmt,
     requester:currentUser,
     status:'open',
-    reason,notes,
+    notes,
     swapOffered:wantSwap,swapClass,
     claimedBy:null,createdAt:Date.now()
   };
@@ -1668,6 +1660,15 @@ function openClaimModal(reqId){
           <button class="bsm bb" onclick="doAssign(${reqId})">Assign</button>
         </div>
       </div>
+      <div style="border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">📋 New format (optional)</div>
+        <div style="display:flex;gap:7px;align-items:center;">
+          <input type="text" id="claimNewFormat" placeholder="e.g. CS45, PSHIIT…"
+            style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;"
+            onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">If the sub will teach a different format, enter it here to update the calendar</div>
+      </div>
       <button class="bsm bgh" onclick="closeMo('claimMo')">Cancel</button>
     </div>`;
   document.getElementById('clBody').innerHTML=html;
@@ -1685,12 +1686,14 @@ function doAssign(reqId){
   if(!name){showToast('Please select an instructor','err');return;}
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
+  const assignFmt=(document.getElementById('claimNewFormat')||{}).value||'';
   req.status='covered';req.claimedBy=name;
-  dbUpdate({id:req.id, status:'covered', claimedBy:name});
+  if(assignFmt) req.newFormat=assignFmt;
+  dbUpdate({id:req.id, status:'covered', claimedBy:name, newFormat:assignFmt});
   const [yr,mo,dy]=req.dateKey.split('-').map(Number);
   const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
   const c=cls.find(x=>x.t===req.time);
-  if(c){c.open=false;delete c.open;c.covered=true;c.coveredBy=name;}
+  if(c){c.open=false;delete c.open;c.covered=true;c.coveredBy=name;if(assignFmt)c.f=assignFmt;}
   addNotif('gr','👤',`${name} assigned to class`,`${req.time} ${req.format} on ${req.date}`);
   closeMo('claimMo');
   refreshBadge();renderCalendar();renderMyClasses();
@@ -1704,13 +1707,17 @@ function doClaim(reqId,isSwap){
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
   // Update state
+  const claimFmt=(document.getElementById('claimNewFormat')||{}).value||'';
   if(isSwap){
     req.status='pending';req.claimedBy=currentUser;
-    dbUpdate({id:req.id, status:'pending', claimedBy:currentUser});
+    if(claimFmt) req.newFormat=claimFmt;
+    dbUpdate({id:req.id, status:'pending', claimedBy:currentUser, newFormat:claimFmt});
     addNotif('bl','🔄',`${currentUser} offered a swap`,`${req.time} ${req.format} on ${req.date}`);
   } else {
     req.status='covered';req.claimedBy=currentUser;
-    dbUpdate({id:req.id, status:'covered', claimedBy:currentUser});
+    if(claimFmt) req.newFormat=claimFmt;
+    dbUpdate({id:req.id, status:'covered', claimedBy:currentUser, newFormat:claimFmt});
+    if(claimFmt){const [yr,mo,dy]=req.dateKey.split('-').map(Number);const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];const c=cls.find(x=>x.t===req.time);if(c)c.f=claimFmt;}
     addNotif('gr','✅',`${currentUser} will cover class`,`${req.time} ${req.format} on ${req.date}`);
   }
   closeMo('claimMo');
@@ -1754,6 +1761,24 @@ function cancelSubRequest(reqId){
   if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
   if(document.getElementById('view-dash').classList.contains('active')) renderDash();
   showToast('Sub request cancelled.','ok');
+}
+
+function saveNewFormat(reqId){
+  const input=document.getElementById('nf-'+reqId);
+  if(!input) return;
+  const newFormat=input.value.trim();
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  req.newFormat=newFormat;
+  dbUpdate({id:req.id, newFormat:newFormat});
+  // Update the schedule data so the calendar reflects the new format
+  const [yr,mo,dy]=req.dateKey.split('-').map(Number);
+  const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
+  const c=cls.find(x=>x.t===req.time);
+  if(c&&newFormat) c.f=newFormat;
+  renderCalendar();
+  if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
+  showToast(newFormat?`✅ Format updated to ${newFormat}`:'Format cleared','ok');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1809,14 +1834,23 @@ function renderSubList(){
         <div class="sbadge ${bMap[r.status]}">${lMap[r.status]}</div>
       </div>
       <div class="rc-meta">
-        <div class="rc-mi"><div class="rc-ml">Format</div><div class="rc-mv">${r.format}</div></div>
+        <div class="rc-mi"><div class="rc-ml">Format</div><div class="rc-mv">${r.format}${r.newFormat?` <span style="color:var(--pink);font-size:11px;">→ ${r.newFormat}</span>`:''}</div></div>
         <div class="rc-mi"><div class="rc-ml">Requested by</div><div class="rc-mv">${r.requester}</div></div>
-        <div class="rc-mi"><div class="rc-ml">Reason</div><div class="rc-mv">${r.reason}</div></div>
+        ${r.notes?`<div class="rc-mi"><div class="rc-ml">Notes</div><div class="rc-mv" style="font-weight:700;">${r.notes}</div></div>`:''}
         ${r.claimedBy?`<div class="rc-mi"><div class="rc-ml">Claimed by</div><div class="rc-mv">${r.claimedBy}</div></div>`:''}
       </div>
-      ${r.notes?`<div class="rc-notes">${r.notes}</div>`:''}
       ${swapNote}
-      <div class="rc-acts">${acts}</div>
+      <div class="rc-acts" style="align-items:center;flex-wrap:wrap;gap:8px;">
+        ${acts}
+        ${(r.status==='covered'||(isMe&&r.status==='open'))?`
+        <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
+          <input type="text" id="nf-${r.id}" value="${r.newFormat||''}"
+            placeholder="New format (optional)"
+            style="padding:5px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:DM Sans,sans-serif;font-size:12px;width:160px;outline:none;"
+            onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--border)'">
+          <button class="bsm" style="background:var(--pink-dim);color:var(--pink);white-space:nowrap;" onclick="saveNewFormat(${r.id})">Save</button>
+        </div>`:''}
+      </div>
     </div>`;
   }).join('');
   document.getElementById('subList').innerHTML=html;
