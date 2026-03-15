@@ -1382,9 +1382,39 @@ function getMyClasses(y,m){
   if(!currentUser||isCoord) return [];
   const mo=SCHEDULE[`${y}-${m}`]||{};
   const out=[];
+  const seen=new Set();
+
+  // 1. Classes originally assigned to me
   Object.entries(mo).forEach(([d,cls])=>{
-    cls.forEach(c=>{if(c.i===currentUser) out.push({...c,day:+d,dateKey:`${y}-${m}-${d}`});});
+    cls.forEach(c=>{
+      if(c.i===currentUser){
+        const key=`${y}-${m}-${d}-${c.t}`;
+        seen.add(key);
+        out.push({...c,day:+d,dateKey:`${y}-${m}-${d}`});
+      }
+    });
   });
+
+  // 2. Classes I claimed as a sub
+  subRequests
+    .filter(r=>r.claimedBy===currentUser&&r.status==='covered')
+    .forEach(r=>{
+      const parts=r.dateKey.split('-').map(Number);
+      if(parts[0]!==y||parts[1]!==m) return;
+      const rd=parts[2];
+      const key=r.dateKey+'-'+r.time;
+      if(seen.has(key)) return;
+      seen.add(key);
+      const orig=(mo[rd]||[]).find(c=>c.t===r.time);
+      out.push({
+        t:r.time, f:r.format, i:currentUser,
+        day:rd, dateKey:r.dateKey,
+        claimedClass:true,
+        originalInstructor:r.requester,
+        ...(orig||{})
+      });
+    });
+
   return out.sort((a,b)=>a.day-b.day||a.t.localeCompare(b.t));
 }
 
@@ -1834,10 +1864,13 @@ function renderMyClasses(){
     const btn=req
       ?(req.status==='covered'?'':`<span style="font-size:11px;color:var(--orange);font-weight:700;">Requested</span>`)
       :`<button class="bsm" style="background:var(--orange-dim);color:var(--orange);" onclick="openSubReqModal(${c.day},'${c.t}','${c.f}')">Need Sub</button>`;
+    const claimedNote = c.claimedClass
+      ? `<div style="font-size:10px;color:var(--blue);font-weight:600;">Sub for ${c.originalInstructor}</div>`
+      : '';
     return `<div class="mcrow ${rowCls}">
       <div class="mc-l">
         <div class="mc-date">${DAYS[getDow(curYear,curMonth,c.day)]} ${getSMo(curMonth)} ${c.day} · ${c.t}</div>
-        <div class="mc-fmt">${c.f}</div>${statusEl}
+        <div class="mc-fmt">${c.f}</div>${claimedNote}${statusEl}
       </div>${btn}
     </div>`;
   }).join('');
