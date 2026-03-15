@@ -1242,26 +1242,43 @@ let dbReady = false; // true once first load completes
 // ── GOOGLE SHEETS BACKEND ──────────────────────────────────────
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzFpJiua0VUYGmqR0jXEIz8IEeOT7KQZSAOgIwjJ41G90Lghd2mYo20l0kRxEg5nuZrtQ/exec';
 
+// ── GOOGLE SHEETS via JSONP (avoids CORS redirect issues) ──────
+function sheetRequest(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Math.random().toString(36).slice(2);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error('Request timed out'));
+    }, 10000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      resolve(data);
+    };
+    const qs = new URLSearchParams(params);
+    qs.set('callback', cbName);
+    const script = document.createElement('script');
+    script.src = `${SHEET_URL}?${qs.toString()}`;
+    script.onerror = () => { clearTimeout(timeout); delete window[cbName]; reject(new Error('Script load error')); };
+    document.head.appendChild(script);
+  });
+}
+
 async function dbGetAll() {
-  const res = await fetch(`${SHEET_URL}?action=getAll`);
-  return res.json();
+  return sheetRequest({action:'getAll'});
 }
 async function dbSave(req) {
-  // Use GET with URL params to avoid CORS issues with Apps Script
-  const params = new URLSearchParams({action:'save'});
+  const params = {action:'save'};
   Object.entries(req).forEach(([k,v]) => {
-    params.append(k, v === null ? '' : typeof v === 'object' ? JSON.stringify(v) : v);
+    params[k] = v === null ? '' : typeof v === 'object' ? JSON.stringify(v) : v;
   });
-  const res = await fetch(`${SHEET_URL}?${params.toString()}`);
-  return res.json();
+  return sheetRequest(params);
 }
 async function dbUpdate(fields) {
-  const params = new URLSearchParams({action:'update'});
-  Object.entries(fields).forEach(([k,v]) => {
-    params.append(k, v === null ? '' : v);
-  });
-  const res = await fetch(`${SHEET_URL}?${params.toString()}`);
-  return res.json();
+  const params = {action:'update'};
+  Object.entries(fields).forEach(([k,v]) => { params[k] = v === null ? '' : v; });
+  return sheetRequest(params);
 }
 
 // Load all requests from the sheet and refresh the UI
