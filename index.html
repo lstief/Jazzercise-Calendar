@@ -1284,13 +1284,58 @@ async function dbUpdate(fields) {
   return sheetRequest(params);
 }
 
+// ── NORMALIZE values that Google Sheets may have auto-converted ──
+function normalizeKey(val) {
+  if(!val) return val;
+  // If it looks like an ISO date "2026-03-16T04:00:00.000Z", convert to "2026-3-16"
+  const m = String(val).match(/^(\d{4})-0?(\d+)-0?(\d+)T/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return String(val);
+}
+function normalizeTime(val) {
+  if(!val) return val;
+  const s = String(val).trim();
+  // Handle ISO date-time: "1899-12-30T11:40:00.000Z"
+  const iso = s.match(/T(\d{2}):(\d{2}):/);
+  if(iso) {
+    let h = parseInt(iso[1]), min = iso[2];
+    const ampm = h >= 12 ? 'pm' : 'am';
+    if(h > 12) h -= 12;
+    if(h === 0) h = 12;
+    return h + ':' + min + ampm;
+  }
+  // Handle "6:40 AM" or "11:00 PM" → "6:40am" / "11:00pm"
+  const clock = s.match(/^(\d+:\d+)\s*(AM|PM)$/i);
+  if(clock) return clock[1] + clock[2].toLowerCase();
+  return s;
+}
+function normalizeDate(val) {
+  if(!val) return val;
+  const s = String(val);
+  // If it looks like an ISO date, convert to "Mon Mar 16" format
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if(m) {
+    const d = new Date(s);
+    return `${DAYS[d.getDay()]} ${d.toLocaleString('en-US',{month:'short'})} ${d.getDate()}`;
+  }
+  return s;
+}
+
 // Load all requests from the sheet and refresh the UI
 async function loadSubRequests() {
   try {
     showLoadingBadge(true);
     const data = await dbGetAll();
     if (Array.isArray(data)) {
-      subRequests = data;
+      subRequests = data.filter(r=>r.status!=='cancelled').map(r=>({
+        ...r,
+        // Normalize dateKey: strip any ISO date conversion back to YYYY-M-D
+        dateKey: normalizeKey(r.dateKey),
+        // Normalize time: convert ISO time back to "6:40am" format
+        time: normalizeTime(r.time),
+        // Normalize date display: if it looks like an ISO date, reformat it
+        date: normalizeDate(r.date),
+      }));
       dbReady = true;
     }
   } catch(e) {
@@ -1667,6 +1712,20 @@ function declineSwap(reqId){
   showToast('Swap declined — request back to open.','');
 }
 
+function cancelSubRequest(reqId){
+  if(!confirm('Cancel this sub request?')) return;
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  // Remove from local array
+  subRequests=subRequests.filter(r=>r.id!==reqId);
+  // Mark as cancelled in sheet
+  dbUpdate({id:req.id, status:'cancelled'});
+  refreshBadge();renderCalendar();renderMyClasses();
+  if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
+  if(document.getElementById('view-dash').classList.contains('active')) renderDash();
+  showToast('Sub request cancelled.','ok');
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  SUB LIST
 // ═══════════════════════════════════════════════════════════════
@@ -1705,7 +1764,11 @@ function renderSubList(){
       acts=`<button class="bsm bg" onclick="confirmSwap(${r.id})">✅ Confirm</button>
         <button class="bsm br" onclick="declineSwap(${r.id})">✗ Decline</button>`;
     if(r.status==='open'&&isMe)
-      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>`;
+      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>
+        <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
+    if(r.status==='pending'&&isMe)
+      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">🔄 Swap pending</span>
+        <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
     if(r.status==='covered')
       acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
     const swapNote=r.swapOffered&&r.swapClass
