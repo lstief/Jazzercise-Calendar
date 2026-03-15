@@ -1255,7 +1255,7 @@ function sheetRequest(params) {
       clearTimeout(timeout);
       delete window[cbName];
       script.remove();
-      console.log('SHEET RESPONSE:', JSON.stringify(data).slice(0,200));
+      console.log('SHEET RESPONSE:', JSON.stringify(data));
       resolve(data);
     };
     const qs = new URLSearchParams(params);
