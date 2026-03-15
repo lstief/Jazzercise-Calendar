@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JRO Schedule</title>
+
+<!-- PWA / Add to Home Screen support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JRO Schedule">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="JRO Schedule">
+<meta name="theme-color" content="#12112a">
+<meta name="description" content="Jazzercise Royal Oak instructor scheduling">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%2312112a'/%3E%3Ctext x='90' y='130' font-family='Georgia,serif' font-size='110' font-weight='bold' fill='%23E8265E' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2312112a'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='20' font-weight='bold' fill='%23E8265E' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pink:#E8265E; --pink-light:#FF6B9D; --pink-dim:rgba(232,38,94,.12);
+  --dark:#12112a; --dark2:#1e1d38;
+  --bg:#f4f0ed; --text:#12112a; --muted:#8a8a9a; --border:#e5ddd8;
+  --green:#22c987; --green-dim:rgba(34,201,135,.13);
+  --orange:#FF8C42; --orange-dim:rgba(255,140,66,.13);
+  --yellow:#FFD166;
+  --blue:#4B6BFB; --blue-dim:rgba(75,107,251,.13);
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+
+/* ── IDENTITY BAR ── */
+#id-bar{background:var(--dark2);padding:8px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.05);}
+#id-bar label{color:#777;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+#whoSelect{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:white;padding:5px 12px;border-radius:18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;outline:none;cursor:pointer;}
+#whoSelect option{background:#1e1d38;color:white;}
+#roleLabel{margin-left:auto;padding:3px 12px;border-radius:16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.role-coord{background:var(--pink-dim);color:var(--pink-light);}
+.role-instr{background:var(--blue-dim);color:#8fa4ff;}
+
+/* ── NAV ── */
+nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:23px;color:var(--pink);letter-spacing:2px;}
+.logo span{color:white;}
+.nav-tabs{display:flex;gap:2px;}
+.nav-tab{background:none;border:none;color:#777;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:5px;}
+.nav-tab.active,.nav-tab:hover{background:rgba(232,38,94,.14);color:var(--pink);}
+.tab-badge{background:var(--pink);color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;min-width:17px;text-align:center;display:none;}
+.tab-badge.on{display:inline-block;}
+.notif-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:white;width:33px;height:33px;border-radius:50%;cursor:pointer;font-size:14px;position:relative;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.notif-btn:hover{background:rgba(255,255,255,.14);}
+.notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;background:var(--pink);border-radius:50%;border:1.5px solid var(--dark);display:none;}
+
+/* ── VIEWS ── */
+.view{display:none;padding:22px 20px;max-width:1100px;margin:0 auto;}
+.view.active{display:block;}
+.page-hdr{margin-bottom:20px;}
+.page-hdr h1{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;}
+.page-hdr p{color:var(--muted);font-size:13px;margin-top:3px;}
+
+/* ── CALENDAR ── */
+.cal-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;}
+.cal-top h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;}
+.arrow-btn{background:white;border:1.5px solid var(--border);width:32px;height:32px;border-radius:7px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.arrow-btn:hover{border-color:var(--pink);color:var(--pink);}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-weight:500;}
+.leg-dot{width:8px;height:8px;border-radius:2px;}
+
+/* GRID — 7 columns */
+.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.day-lbl{text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;padding:4px 0;}
+
+.day-cell{
+  background:white;border-radius:9px;border:1.5px solid var(--border);
+  padding:6px;cursor:pointer;transition:all .16s;
+  /* Scrollable — show ALL classes */
+  min-height:110px;max-height:200px;overflow-y:auto;
+  position:relative;
+}
+.day-cell::-webkit-scrollbar{width:3px;}
+.day-cell::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.day-cell:hover{border-color:var(--pink);box-shadow:0 4px 14px rgba(232,38,94,.1);}
+.day-cell.today{border-color:var(--pink);background:#fff5f8;}
+.day-cell.has-open{border-color:var(--orange);}
+.day-cell.faded{opacity:.28;cursor:default;pointer-events:none;}
+.day-num{font-size:11px;font-weight:700;color:var(--dark);margin-bottom:3px;position:sticky;top:0;background:inherit;z-index:1;}
+.day-cell.today .day-num{color:var(--pink);}
+
+.cp{font-size:8px;font-weight:600;padding:2px 5px;border-radius:3px;margin-bottom:2px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+.cp-normal{background:#eef2ff;color:#4B6BFB;}
+.cp-open{background:var(--orange-dim);color:var(--orange);}
+.cp-covered{background:var(--green-dim);color:#1a9e6a;}
+.cp-mine{background:var(--pink-dim);color:var(--pink);}
+
+/* ── MODAL ── */
+.mo{display:none;position:fixed;inset:0;background:rgba(18,17,42,.65);z-index:200;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(5px);}
+.mo.open{display:flex;}
+.modal{background:white;border-radius:18px;width:100%;max-width:480px;box-shadow:0 28px 70px rgba(0,0,0,.28);overflow:hidden;animation:su .2s ease;}
+.modal.wide{max-width:560px;}
+@keyframes su{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.mhdr{background:var(--dark);padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;}
+.mhdr h3{color:white;font-size:16px;font-weight:700;}
+.mhdr p{color:#999;font-size:12px;margin-top:2px;}
+.xbtn{background:none;border:none;color:#777;font-size:21px;cursor:pointer;line-height:1;transition:color .15s;}
+.xbtn:hover{color:white;}
+.mbody{padding:20px;max-height:78vh;overflow-y:auto;}
+
+/* class items in day modal */
+.cli{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);margin-bottom:6px;transition:all .16s;}
+.cli.open-slot{border-color:var(--orange);background:#fffaf5;}
+.cli.my-slot{border-color:var(--blue);background:#f5f7ff;}
+.cli-l{display:flex;flex-direction:column;gap:1px;}
+.cli-time{font-size:13px;font-weight:700;}
+.cli-fmt{font-size:11px;color:var(--muted);}
+.cli-who{font-size:11px;font-weight:600;}
+.cli-who.nsub{color:var(--orange);}
+.cli-who.cov{color:var(--green);}
+.cli-who.mine{color:var(--blue);}
+.chip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:14px;border:none;cursor:pointer;transition:all .16s;white-space:nowrap;}
+.chip-sub{background:var(--pink-dim);color:var(--pink);}
+.chip-sub:hover{background:var(--pink);color:white;}
+.chip-claim{background:var(--green-dim);color:#1a9e6a;}
+.chip-claim:hover{background:var(--green);color:white;}
+
+/* ── FORMS ── */
+.fg{margin-bottom:12px;}
+.fg label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;}
+.fg select,.fg input,.fg textarea{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;transition:border-color .16s;}
+.fg select:focus,.fg input:focus,.fg textarea:focus{border-color:var(--pink);}
+.fg textarea{resize:vertical;min-height:60px;}
+.btn-pri{width:100%;padding:12px;background:var(--pink);color:white;border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .18s;letter-spacing:.3px;}
+.btn-pri:hover{background:#c91f52;box-shadow:0 5px 16px rgba(232,38,94,.3);}
+.btn-pri:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;}
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.swap-section{background:#f5f7ff;border-radius:9px;padding:12px;margin-top:12px;}
+.swap-section h5{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:9px;}
+.swap-pick{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:white;border-radius:6px;margin-bottom:4px;border:1.5px solid #dde3ff;cursor:pointer;transition:all .16s;}
+.swap-pick:hover,.swap-pick.sel{border-color:var(--blue);background:#eef1ff;}
+.swap-pick span{font-size:12px;font-weight:600;}
+.swap-pick small{font-size:10px;color:var(--muted);}
+
+/* ── SUB REQUESTS ── */
+.filter-bar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.fchip{padding:5px 14px;border-radius:16px;border:1.5px solid var(--border);background:white;font-size:12px;font-weight:600;cursor:pointer;transition:all .16s;}
+.fchip.active{background:var(--pink);border-color:var(--pink);color:white;}
+.fchip:hover:not(.active){border-color:var(--pink);color:var(--pink);}
+
+.rcard{background:white;border-radius:var(--radius);border:1.5px solid var(--border);border-left:4px solid var(--border);padding:14px 16px;margin-bottom:9px;transition:all .16s;}
+.rcard:hover{box-shadow:0 3px 14px rgba(0,0,0,.06);}
+.rcard.s-open{border-left-color:var(--orange);}
+.rcard.s-pending{border-left-color:var(--yellow);}
+.rcard.s-covered{border-left-color:var(--green);}
+.rcard.s-mine{border-left-color:var(--blue);}
+.rc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+.rc-date{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.7px;}
+.rc-time-lbl{font-size:12px;color:var(--muted);font-weight:500;margin-top:1px;}
+.sbadge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+.sb-open{background:var(--orange-dim);color:var(--orange);}
+.sb-pending{background:rgba(255,209,102,.2);color:#9e6a00;}
+.sb-covered{background:var(--green-dim);color:#1a9e6a;}
+.sb-mine{background:var(--blue-dim);color:var(--blue);}
+.rc-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+.rc-mi{display:flex;flex-direction:column;gap:1px;}
+.rc-ml{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
+.rc-mv{font-size:13px;font-weight:600;}
+.rc-notes{font-size:11px;color:var(--muted);font-style:italic;margin-bottom:9px;}
+.rc-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.bsm{padding:6px 14px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .16s;}
+.bg{background:var(--green-dim);color:#1a9e6a;} .bg:hover{background:var(--green);color:white;}
+.bb{background:var(--blue-dim);color:var(--blue);} .bb:hover{background:var(--blue);color:white;}
+.br{background:var(--pink-dim);color:var(--pink);} .br:hover{background:var(--pink);color:white;}
+.bgh{background:none;color:var(--muted);border:1.5px solid var(--border);} .bgh:hover{border-color:var(--text);color:var(--text);}
+.swap-box{background:#f5f7ff;border-radius:8px;padding:9px 12px;margin-top:8px;font-size:12px;border:1px solid #dde3ff;}
+.swap-box strong{color:var(--blue);}
+
+/* sending indicator */
+.sending-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-weight:600;}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid #ddd;border-top-color:var(--pink);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── MY CLASSES ── */
+.mcrow{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:9px;border:1.5px solid var(--border);padding:11px 14px;margin-bottom:6px;transition:all .16s;}
+.mcrow:hover{border-color:#ddd;box-shadow:0 2px 9px rgba(0,0,0,.05);}
+.mcrow.sub-active{border-color:var(--orange);background:#fffaf5;}
+.mc-l{display:flex;flex-direction:column;gap:2px;}
+.mc-date{font-size:13px;font-weight:700;}
+.mc-fmt{font-size:11px;color:var(--muted);}
+.mc-status{font-size:11px;font-weight:600;color:var(--orange);}
+
+/* ── DASHBOARD ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:20px;}
+@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:white;border-radius:var(--radius);padding:13px 15px;border:1.5px solid var(--border);}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;}
+.stat-num.pink{color:var(--pink);} .stat-num.orange{color:var(--orange);}
+.stat-num.green{color:var(--green);} .stat-num.blue{color:var(--blue);}
+.stat-lbl{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.8px;margin-bottom:11px;}
+.glofox-card{background:var(--dark);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;}
+.glofox-card h3{color:white;font-size:14px;font-weight:700;margin-bottom:3px;}
+.glofox-card p{color:#888;font-size:12px;margin-bottom:12px;}
+.gitem{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.06);border-radius:7px;margin-bottom:5px;}
+.gcheck{width:17px;height:17px;border-radius:4px;border:1.5px solid #666;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .16s;flex-shrink:0;font-size:10px;}
+.gcheck.done{background:var(--green);border-color:var(--green);color:white;}
+.gtxt{color:#ddd;font-size:12px;}
+.gtxt.done{text-decoration:line-through;color:#555;}
+.fb-card{background:white;border-radius:var(--radius);border:1.5px solid var(--border);overflow:hidden;margin-bottom:20px;}
+.fb-hdr{background:#1877F2;padding:10px 15px;}
+.fb-hdr span{color:white;font-weight:700;font-size:13px;}
+.fb-body{padding:13px 15px;font-size:13px;line-height:1.85;white-space:pre-wrap;}
+.fb-copy{margin:0 15px 13px;padding:8px;background:#eef2ff;color:var(--blue);border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;width:calc(100% - 30px);transition:all .16s;}
+.fb-copy:hover{background:var(--blue);color:white;}
+
+/* ── NOTIF PANEL ── */
+.npanel{position:fixed;top:54px;right:14px;width:300px;background:white;border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:0 14px 42px rgba(0,0,0,.16);z-index:150;max-height:380px;overflow-y:auto;display:none;}
+.npanel.open{display:block;animation:su .18s ease;}
+.np-hdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.np-hdr h4{font-size:13px;font-weight:700;}
+.np-clear{background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;}
+.np-clear:hover{color:var(--pink);}
+.nitem{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:9px;cursor:pointer;transition:background .14s;}
+.nitem:hover{background:#fafafa;}
+.nitem:last-child{border-bottom:none;}
+.nico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.nico.or{background:var(--orange-dim);} .nico.gr{background:var(--green-dim);}
+.nico.bl{background:var(--blue-dim);} .nico.pk{background:var(--pink-dim);}
+.ntxt p{font-size:12px;font-weight:600;line-height:1.4;}
+.ntxt small{font-size:10px;color:var(--muted);}
+.nempty{padding:22px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:36px 20px;color:var(--muted);}
+.empty .ei{font-size:34px;margin-bottom:9px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--dark);color:white;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;z-index:999;transition:transform .26s ease;box-shadow:0 7px 24px rgba(0,0,0,.26);pointer-events:none;max-width:90vw;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.ok{background:#1a7a52;} .toast.err{background:#a01f3e;}
+
+@media(max-width:640px){
+  .nav-tabs .tlbl{display:none;}
+  .nav-tab{padding:6px 9px;}
+}
+</style>
+</head>
+<body>
+
+<div id="id-bar">
+  <label for="whoSelect">Viewing as:</label>
+  <select id="whoSelect" onchange="setIdentity(this.value)">
+    <option value="">— Select your name —</option>
+    <option value="__coord__">📋 Coordinator (Admin)</option>
+    <option disabled>──────────</option>
+    <option value="Alex">Alex</option>
+    <option value="Alexis">Alexis</option>
+    <option value="Cece">Cece</option>
+    <option value="Christina">Christina</option>
+    <option value="Christine M">Christine M</option>
+    <option value="Colleen">Colleen</option>
+    <option value="Danielle">Danielle</option>
+    <option value="Erin">Erin</option>
+    <option value="Jane">Jane</option>
+    <option value="Jen">Jen</option>
+    <option value="Karie">Karie</option>
+    <option value="Katy">Katy</option>
+    <option value="Lisa">Lisa</option>
+    <option value="Nadia">Nadia</option>
+    <option value="Nicole">Nicole</option>
+    <option value="Staci">Staci</option>
+    <option value="Stephanie D">Stephanie D</option>
+    <option value="Stephanie H">Stephanie H</option>
+    <option value="Teri">Teri</option>
+    <option value="Tess">Tess</option>
+    <option value="Tori">Tori</option>
+    <option value="Trisha">Trisha</option>
+  </select>
+  <div id="roleLabel" class="role-instr">Select name above</div>
+</div>
+
+<nav>
+  <div class="logo">JRO <span>Schedule</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('calendar',this)">📅 <span class="tlbl">Calendar</span></button>
+    <button class="nav-tab" onclick="showView('subs',this)">🔄 <span class="tlbl">Sub Requests</span> <span class="tab-badge" id="subBadge">0</span></button>
+    <button class="nav-tab" onclick="showView('my',this)">👤 <span class="tlbl">My Classes</span></button>
+    <button class="nav-tab coord-only" onclick="showView('dash',this)" style="display:none">⚡ <span class="tlbl">Dashboard</span></button>
+  </div>
+  <button class="notif-btn" onclick="toggleNotifs()" id="notifBtn">🔔<div class="notif-dot" id="notifDot"></div></button>
+</nav>
+
+<!-- NOTIF PANEL -->
+<div class="npanel" id="npanel">
+  <div class="np-hdr"><h4>Notifications</h4><button class="np-clear" onclick="clearNotifs()">Clear all</button></div>
+  <div id="nlist"></div>
+</div>
+
+<!-- ═══ CALENDAR ═══ -->
+<div id="view-calendar" class="view active">
+  <div class="page-hdr">
+    <h1 id="calTitle">March 2026</h1>
+    <p>Tap any day to see details and request/claim subs · Scroll within days to see all classes</p>
+  </div>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#eef2ff;border:1.5px solid #4B6BFB;"></div>Assigned</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--orange-dim);border:1.5px solid var(--orange);"></div>Needs Sub</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--green-dim);border:1.5px solid var(--green);"></div>Covered</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--pink-dim);border:1.5px solid var(--pink);"></div>Your Class</div>
+  </div>
+  <div class="cal-top">
+    <button class="arrow-btn" onclick="changeMonth(-1)">‹</button>
+    <h2 id="calMonthLbl">MARCH 2026</h2>
+    <button class="arrow-btn" onclick="changeMonth(1)">›</button>
+  </div>
+  <div class="day-grid" id="calGrid"></div>
+</div>
+
+<!-- ═══ SUB REQUESTS ═══ -->
+<div id="view-subs" class="view">
+  <div class="page-hdr"><h1>Sub Requests</h1><p>Claim open slots · Pending swaps · View history</p></div>
+  <div class="filter-bar">
+    <button class="fchip active" onclick="filterSubs('all',this)">All</button>
+    <button class="fchip" onclick="filterSubs('open',this)">🟠 Open</button>
+    <button class="fchip" onclick="filterSubs('pending',this)">🟡 Pending</button>
+    <button class="fchip" onclick="filterSubs('covered',this)">🟢 Covered</button>
+    <button class="fchip" onclick="filterSubs('mine',this)">👤 Mine</button>
+  </div>
+  <div id="subList"></div>
+</div>
+
+<!-- ═══ MY CLASSES ═══ -->
+<div id="view-my" class="view">
+  <div class="page-hdr"><h1>My Classes</h1><p>Your schedule · Request a sub if you can't make it</p></div>
+  <div id="myList"></div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="view-dash" class="view">
+  <div class="page-hdr"><h1>Coordinator Dashboard</h1><p>Overview · Glofox checklist · Facebook post generator</p></div>
+  <div class="stats-grid" id="statsGrid"></div>
+  <div class="sec-title">PENDING APPROVALS</div>
+  <div id="pendingApprovals" style="margin-bottom:20px;"></div>
+  <div class="sec-title">GLOFOX CHECKLIST</div>
+  <div class="glofox-card">
+    <h3>🔄 Pending Glofox Updates</h3>
+    <p>Check off as you update the system</p>
+    <div id="glofoxList"></div>
+  </div>
+  <div class="sec-title">FACEBOOK POST</div>
+  <div class="fb-card">
+    <div class="fb-hdr"><span>📘 Jazzercise Royal Oak — Schedule Update</span></div>
+    <div class="fb-body" id="fbBody"></div>
+    <button class="fb-copy" onclick="copyFB()">📋 Copy to Clipboard</button>
+  </div>
+</div>
+
+<!-- ═══ DAY MODAL ═══ -->
+<div class="mo" id="dayModal">
+  <div class="modal">
+    <div class="mhdr">
+      <div><h3 id="mTitle">—</h3><p id="mSub">—</p></div>
+      <button class="xbtn" onclick="closeMo('dayModal')">×</button>
+    </div>
+    <div class="mbody" id="mBody"></div>
+  </div>
+</div>
+
+<!-- ═══ REQUEST SUB MODAL ═══ -->
+<div class="mo" id="subReqMo">
+  <div class="modal">
+    <div class="mhdr">
+      <div><h3>Request a Sub</h3><p id="srInfo">—</p></div>
+      <button class="xbtn" onclick="closeMo('subReqMo')">×</button>
+    </div>
+    <div class="mbody">
+      <div class="fg">
+        <label>Reason</label>
+        <select id="srReason">
+          <option value="">Select…</option>
+          <option>Personal appointment</option>
+          <option>Out of town / travel</option>
+          <option>Illness</option>
+          <option>Family obligation</option>
+          <option>Work conflict</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Notes (optional)</label>
+        <textarea id="srNotes" placeholder="Anything helpful for a sub to know…"></textarea>
+      </div>
+      <div class="fg">
+        <label>Swap offer?</label>
+        <select id="srSwapChoice" onchange="toggleSwapPicker()">
+          <option value="no">No — just need coverage</option>
+          <option value="yes">Yes — I'll swap one of my classes</option>
+        </select>
+      </div>
+      <div id="swapPicker" style="display:none" class="swap-section">
+        <h5>Choose a class to offer:</h5>
+        <div id="swapOptions"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn-pri" id="srSubmitBtn" onclick="submitSubReq()">📤 Submit Sub Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CLAIM MODAL ═══ -->
+<div class="mo" id="claimMo">
+  <div class="modal">
+    <div class="mhdr">
+      <div><h3 id="clTitle">Claim This Class</h3><p id="clInfo">—</p></div>
+      <button class="xbtn" onclick="closeMo('claimMo')">×</button>
+    </div>
+    <div class="mbody" id="clBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  COMPLETE SCHEDULE DATA — March & April 2026
+// ═══════════════════════════════════════════════════════════════
+const SCHEDULE = {
+  '2026-3': {
+    1:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'VSHIIT',i:'Stephanie H'},
+      {t:'9:45am',f:'PSHIIT',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CSStk',i:'Alex'},
+      {t:'4:30pm',f:'CS',i:'Christine M'},
+    ],
+    2:[
+      {t:'5:30am',f:'LoSCHIIT',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'PSHIIT45',i:'Christina'},
+      {t:'8:30am',f:'CS',i:'Jane'},
+      {t:'9:45am',f:'SCHIIT',i:'Alexis'},
+      {t:'4:30pm',f:'PSHIIT',i:'Karie'},
+      {t:'5:45pm',f:'CSHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Staci'},
+    ],
+    3:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'SCHIIT',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'SCHIIT',i:'Tori'},
+      {t:'5:45pm',f:'CS',i:'Danielle'},
+      {t:'7:00pm',f:'CSCor',i:'Staci'},
+    ],
+    4:[
+      {t:'5:30am',f:'CS',i:'Nadia'},
+      {t:'6:40am',f:'LoCSStk45',i:'Lisa'},
+      {t:'7:30am',f:'CS45',i:'Stephanie D'},
+      {t:'8:30am',f:'LoCS',i:'Nicole'},
+      {t:'9:45am',f:'CSCor',i:'Jane'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CSCor',i:'Staci'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+      {t:'7:50pm',f:'STRETCH',i:'Trisha'},
+    ],
+    5:[
+      {t:'5:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'SC45',i:'Danielle'},
+      {t:'8:30am',f:'CSCor',i:'Jane'},
+      {t:'9:45am',f:'LoCS',i:'Colleen'},
+      {t:'11:00am',f:'STRETCH',i:'Teri'},
+      {t:'4:30pm',f:'CSHIIT',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'SC60',i:'Erin'},
+    ],
+    6:[
+      {t:'5:30am',f:'CS',i:'Stephanie H'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'CSHIIT45',i:'Cece'},
+      {t:'8:30am',f:'PSHIIT',i:'Christina'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'4:30pm',f:'LoCS',i:'Katy'},
+      {t:'5:45pm',f:'CSStk45',i:'Alex'},
+    ],
+    7:[
+      {t:'7:30am',f:'CSHIIT45',i:'Erin'},
+      {t:'8:30am',f:'CS',i:'Jane'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'SCHIIT',i:'Tori'},
+    ],
+    8:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CS',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CS',i:'Alex'},
+      {t:'4:30pm',f:'CSHIIT',i:'Christine M'},
+    ],
+    9:[
+      {t:'5:30am',f:'LoCS',i:'Nicole'},
+      {t:'6:40am',f:'LoCSStk45',i:'Lisa'},
+      {t:'7:30am',f:'CS45',i:'Cece'},
+      {t:'8:30am',f:'CSCor',i:'Jane'},
+      {t:'9:45am',f:'CS',i:'Alexis'},
+      {t:'11:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'SCHIIT',i:'Tori'},
+    ],
+    10:[
+      {t:'5:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'8:30am',f:'CS',i:'Alexis'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'11:00am',f:'LoCSCor',i:'Jane'},
+      {t:'1:00pm',f:'CS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'VSHIIT',i:'Danielle'},
+    ],
+    11:[
+      {t:'5:30am',f:'PSHIIT',i:'Nadia'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'LoCS45',i:'Nicole'},
+      {t:'8:30am',f:'CSHIIT',i:'Stephanie D'},
+      {t:'9:45am',f:'CS',i:'Jane'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'PSHIIT',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Tess'},
+      {t:'7:00pm',f:'CSHIIT45',i:'Trisha'},
+    ],
+    12:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'ALT45',i:'OPEN',open:true},
+      {t:'8:30am',f:'CS',i:'Jane'},
+      {t:'9:45am',f:'LoPS',i:'Colleen'},
+      {t:'11:00am',f:'STRETCH',i:'Teri'},
+      {t:'4:30pm',f:'CS',i:'Cece'},
+      {t:'5:45pm',f:'CSHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'SC60',i:'Erin'},
+    ],
+    13:[
+      {t:'5:30am',f:'CS',i:'Stephanie H'},
+      {t:'6:40am',f:'CSHIIT45',i:'Stephanie H'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'CSStk',i:'Alexis'},
+      {t:'9:45am',f:'CSStk',i:'Alexis'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Colleen'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'CSStk',i:'Tori'},
+      {t:'7:00pm',f:'CS',i:'Jen'},
+    ],
+    14:[
+      {t:'7:30am',f:'CS45',i:'Jane'},
+      {t:'8:30am',f:'CSStk',i:'Tess'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'11:00am',f:'CLoS',i:'Katy'},
+    ],
+    15:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'LoCS45',i:'Nicole'},
+      {t:'11:00am',f:'STRETCH',i:'Nicole'},
+      {t:'1:00pm',f:'CSStk',i:'Alex'},
+      {t:'4:30pm',f:'CS',i:'Christine M'},
+    ],
+    16:[
+      {t:'5:30am',f:'LoSCHIIT',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'PSHIIT45',i:'Christina'},
+      {t:'8:30am',f:'PSHIIT',i:'Christine M'},
+      {t:'9:45am',f:'SCHIIT',i:'Alexis'},
+      {t:'11:00am',f:'LoPS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'CSHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Jen'},
+    ],
+    17:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'SCHIIT',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'SCHIIT',i:'Tori'},
+      {t:'5:45pm',f:'CSStk',i:'Tess'},
+      {t:'7:00pm',f:'CSHIIT',i:'Erin'},
+      {t:'7:50pm',f:'STRETCH',i:'Trisha'},
+    ],
+    18:[
+      {t:'5:30am',f:'CS',i:'Nadia'},
+      {t:'6:40am',f:'LoSCHIIT45',i:'Nicole'},
+      {t:'7:30am',f:'CS',i:'Stephanie D'},
+      {t:'8:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'4:30pm',f:'CS',i:'Karie',covered:true,coveredBy:'Staci'},
+      {t:'5:45pm',f:'CSStk',i:'Tess'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+    ],
+    19:[
+      {t:'5:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'SC45',i:'Danielle'},
+      {t:'8:30am',f:'CSCor',i:'Jane'},
+      {t:'9:45am',f:'LoCS',i:'Colleen'},
+      {t:'11:00am',f:'STRETCH',i:'Teri'},
+      {t:'4:30pm',f:'CSHIIT',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'SC60',i:'Nadia'},
+    ],
+    20:[
+      {t:'5:30am',f:'CS',i:'Stephanie H'},
+      {t:'6:40am',f:'CS45',i:'Jen'},
+      {t:'7:30am',f:'CSHIIT45',i:'Jen'},
+      {t:'8:30am',f:'PSHIIT',i:'Christina'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'11:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Jen'},
+    ],
+    21:[
+      {t:'7:30am',f:'CSHIIT45',i:'Erin'},
+      {t:'8:30am',f:'CS',i:'Tess'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'Alexis'},
+    ],
+    22:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CS',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CS',i:'Alex'},
+      {t:'4:30pm',f:'CSCor',i:'Jen'},
+    ],
+    23:[
+      {t:'5:30am',f:'LoCS',i:'Nicole'},
+      {t:'6:40am',f:'LoCSStk45',i:'Lisa'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'PSHIIT',i:'Christina'},
+      {t:'9:45am',f:'CS',i:'Alexis'},
+      {t:'11:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'CSCor',i:'Jen'},
+    ],
+    24:[
+      {t:'5:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Stephanie H'},
+      {t:'7:30am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'8:30am',f:'CS',i:'Alexis'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'11:00am',f:'LoCSCor',i:'Colleen'},
+      {t:'1:00pm',f:'CS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Alex'},
+    ],
+    25:[
+      {t:'5:30am',f:'PSHIIT',i:'Nadia'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'LoCS45',i:'Nicole'},
+      {t:'8:30am',f:'CS',i:'Tess'},
+      {t:'9:45am',f:'PS',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'PSHIIT',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Jen'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+    ],
+    26:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CSCor',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'VSHIIT',i:'Alex'},
+      {t:'4:30pm',f:'CS',i:'Jen'},
+    ],
+    27:[
+      {t:'5:30am',f:'LoSCHIIT',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'CS',i:'Stephanie H'},
+      {t:'8:30am',f:'LoCS',i:'Katy'},
+      {t:'9:45am',f:'CSStk',i:'Alexis'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Colleen'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'SCHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Jen'},
+    ],
+    28:[
+      {t:'7:30am',f:'CS45',i:'Erin'},
+      {t:'8:30am',f:'CSStk',i:'Tess'},
+      {t:'9:45am',f:'VSHIIT',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'Jane'},
+    ],
+    29:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'VSHIIT',i:'Stephanie H'},
+      {t:'9:45am',f:'PSHIIT',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CSStk',i:'Alex'},
+      {t:'4:30pm',f:'CS',i:'Jen'},
+    ],
+    30:[
+      {t:'5:30am',f:'LoSCHIIT',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'PSHIIT45',i:'Christina'},
+      {t:'8:30am',f:'PSHIIT',i:'Christine M'},
+      {t:'9:45am',f:'SCHIIT',i:'Alexis'},
+      {t:'4:30pm',f:'PSHIIT',i:'Karie'},
+      {t:'5:45pm',f:'CSHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Jen'},
+    ],
+    31:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'SCHIIT',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'SCHIIT',i:'Tori'},
+      {t:'5:45pm',f:'CS',i:'Danielle'},
+      {t:'7:00pm',f:'CSCor',i:'Staci'},
+    ],
+  },
+  '2026-4': {
+    1:[
+      {t:'5:30am',f:'CS',i:'Nadia'},
+      {t:'6:40am',f:'LoCSStk45',i:'Lisa'},
+      {t:'7:30am',f:'LoSCHIIT45',i:'Nicole'},
+      {t:'8:30am',f:'CS',i:'Stephanie D'},
+      {t:'9:45am',f:'CSCor',i:'Jane'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Katy'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CSStk',i:'Tess'},
+      {t:'7:00pm',f:'CS45',i:'Staci'},
+      {t:'7:50pm',f:'STRETCH',i:'Jane'},
+    ],
+    2:[
+      {t:'5:30am',f:'CSHIIT',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'SC45',i:'Danielle'},
+      {t:'8:30am',f:'CSCor',i:'Jane'},
+      {t:'9:45am',f:'LoCS',i:'Colleen'},
+      {t:'11:00am',f:'STRETCH',i:'Jane'},
+      {t:'1:00pm',f:'SCHIIT',i:'Alexis'},
+      {t:'4:30pm',f:'CSHIIT',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Nadia'},
+      {t:'7:00pm',f:'SC60',i:'Staci'},
+    ],
+    3:[
+      {t:'5:30am',f:'CS',i:'Stephanie H'},
+      {t:'6:40am',f:'CS45',i:'Jennifer'},
+      {t:'7:30am',f:'PS',i:'Jennifer'},
+      {t:'8:30am',f:'PSHIIT',i:'Christina'},
+      {t:'9:45am',f:'CSCor',i:'Jane'},
+      {t:'1:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'SCHIIT',i:'Alexis'},
+      {t:'5:45pm',f:'CSStk45',i:'Alex'},
+    ],
+    4:[
+      {t:'7:30am',f:'CSHIIT45',i:'Stephanie D'},
+      {t:'8:30am',f:'CS',i:'OPEN',open:true},
+      {t:'9:45am',f:'CS',i:'Jennifer'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Katy'},
+    ],
+    5:[
+      {t:'7:30am',f:'CANCELED',i:'—'},
+      {t:'8:30am',f:'CANCELED',i:'—'},
+      {t:'9:45am',f:'CS',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CANCELED',i:'—'},
+      {t:'4:30pm',f:'CANCELED',i:'—'},
+    ],
+    6:[
+      {t:'5:30am',f:'LoCS',i:'Nicole'},
+      {t:'6:40am',f:'LoSCHIIT45',i:'Lisa'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'PSHIIT',i:'Jane'},
+      {t:'9:45am',f:'CS',i:'Alexis'},
+      {t:'11:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Nadia'},
+      {t:'7:00pm',f:'PS',i:'Jennifer'},
+    ],
+    7:[
+      {t:'5:30am',f:'PS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS45',i:'Stephanie D'},
+      {t:'8:30am',f:'CS',i:'Alexis'},
+      {t:'9:45am',f:'PS',i:'Cece'},
+      {t:'11:00am',f:'LoPSHIIT',i:'Jane'},
+      {t:'1:00am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'CSStk45',i:'Jennifer'},
+      {t:'7:00pm',f:'CS',i:'Erin'},
+    ],
+    8:[
+      {t:'5:30am',f:'PSHIIT',i:'Nadia'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'LoCS45',i:'Nicole'},
+      {t:'8:30am',f:'PS',i:'Stephanie D'},
+      {t:'9:45am',f:'CS',i:'Jane'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Tess'},
+      {t:'7:00pm',f:'CSCor',i:'Trisha'},
+    ],
+    9:[
+      {t:'7:30am',f:'CS45',i:'Erin'},
+      {t:'8:30am',f:'ALT',i:'Jennifer'},
+      {t:'9:45am',f:'PS',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'OPEN',open:true},
+    ],
+    10:[
+      {t:'5:30am',f:'CSCor',i:'Stephanie H'},
+      {t:'6:40am',f:'PS45',i:'Jennifer'},
+      {t:'7:30am',f:'CS45',i:'Cece'},
+      {t:'8:30am',f:'CS',i:'Christina'},
+      {t:'9:45am',f:'CS',i:'Jane'},
+      {t:'1:00am',f:'LoCSHIIT',i:'Colleen'},
+      {t:'1:00pm',f:'CS',i:'Alexis'},
+      {t:'4:30pm',f:'LoSCHIIT',i:'Katy'},
+      {t:'5:45pm',f:'CS45',i:'Alex'},
+    ],
+    11:[
+      {t:'7:30am',f:'CS45',i:'Erin'},
+      {t:'8:30am',f:'CSStk',i:'Tess'},
+      {t:'9:45am',f:'PS',i:'Jennifer'},
+      {t:'11:00am',f:'CS',i:'OPEN',open:true},
+    ],
+    12:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CSCor',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CS',i:'Alex'},
+      {t:'4:30pm',f:'VSHIIT',i:'Jennifer'},
+    ],
+    13:[
+      {t:'5:30am',f:'LoCSStk',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'SCHIIT45',i:'Christina'},
+      {t:'8:30am',f:'LoCS',i:'Katy'},
+      {t:'9:45am',f:'CSStk',i:'Alexis'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Colleen'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'CSStk',i:'Tori'},
+      {t:'7:00pm',f:'CS',i:'Jennifer'},
+    ],
+    14:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'PS45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS',i:'Christina'},
+      {t:'8:30am',f:'CSStk',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Cece'},
+      {t:'11:00am',f:'CS',i:'Jane'},
+      {t:'1:00am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'CS',i:'Danielle'},
+      {t:'7:00pm',f:'PSHIIT',i:'Erin'},
+    ],
+    15:[
+      {t:'5:30am',f:'CS',i:'Nadia'},
+      {t:'6:40am',f:'LoSCHIIT45',i:'Lisa'},
+      {t:'7:30am',f:'LoCSStk45',i:'Nicole'},
+      {t:'8:30am',f:'CS',i:'Stephanie D'},
+      {t:'9:45am',f:'PSHIIT',i:'Jane'},
+      {t:'11:00am',f:'LoSCHIIT',i:'Katy'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Jennifer'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+    ],
+    16:[
+      {t:'5:30am',f:'PS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'CS45',i:'Danielle'},
+      {t:'8:30am',f:'SCHIIT',i:'Christina'},
+      {t:'9:45am',f:'PSHIIT',i:'Jane'},
+      {t:'11:00am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'VSHIIT',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Jennifer'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+      {t:'7:50pm',f:'STRETCH',i:'Trisha'},
+    ],
+    17:[
+      {t:'5:30am',f:'CS',i:'Stephanie H'},
+      {t:'6:40am',f:'CS45',i:'Jennifer'},
+      {t:'7:30am',f:'PS',i:'Cece'},
+      {t:'8:30am',f:'SCHIIT',i:'Christina'},
+      {t:'9:45am',f:'PS',i:'Teri'},
+      {t:'1:00am',f:'LoCS',i:'Colleen'},
+      {t:'1:00pm',f:'CS',i:'Alexis'},
+      {t:'4:30pm',f:'LoSCHIIT',i:'Katy'},
+      {t:'5:45pm',f:'VSHIIT45',i:'Alex'},
+    ],
+    18:[
+      {t:'7:30am',f:'ALT45',i:'OPEN',open:true},
+      {t:'8:30am',f:'CS',i:'Jennifer'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'ALT',i:'OPEN',open:true},
+    ],
+    19:[
+      {t:'7:30am',f:'CSCor45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CS',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'CS',i:'Alex'},
+      {t:'4:30pm',f:'PS',i:'Jennifer'},
+    ],
+    20:[
+      {t:'5:30am',f:'LoCS',i:'Nicole'},
+      {t:'6:40am',f:'LoSCHIIT45',i:'Lisa'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'PSHIIT',i:'Jane'},
+      {t:'9:45am',f:'CS',i:'Alexis'},
+      {t:'11:00am',f:'LoCS',i:'Colleen'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'PS',i:'Jennifer'},
+    ],
+    21:[
+      {t:'5:30am',f:'PS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Stephanie D'},
+      {t:'7:30am',f:'SCHIIT45',i:'Christina'},
+      {t:'8:30am',f:'CS',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'LoPSHIIT',i:'Jane'},
+      {t:'1:00am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'VSHIIT',i:'Danielle'},
+      {t:'7:00pm',f:'CS',i:'Erin'},
+    ],
+    22:[
+      {t:'5:30am',f:'ALT',i:'OPEN',open:true},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'LoCS45',i:'Nicole'},
+      {t:'8:30am',f:'PS',i:'Stephanie D'},
+      {t:'9:45am',f:'CS',i:'Jane'},
+      {t:'11:00am',f:'LoCS',i:'Katy'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'CS',i:'Staci'},
+      {t:'7:00pm',f:'SCHIIT',i:'Trisha'},
+    ],
+    23:[
+      {t:'7:30am',f:'CS45',i:'Erin'},
+      {t:'8:30am',f:'ALT',i:'Jennifer'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'OPEN',open:true},
+    ],
+    24:[
+      {t:'5:30am',f:'CSCor',i:'Stephanie H'},
+      {t:'6:40am',f:'PS45',i:'Jennifer'},
+      {t:'7:30am',f:'CS45',i:'Cece'},
+      {t:'8:30am',f:'CS',i:'Christina'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'1:00am',f:'LoCS',i:'Colleen'},
+      {t:'1:00pm',f:'CS',i:'Alexis'},
+      {t:'4:30pm',f:'LoSCHIIT',i:'Katy'},
+      {t:'5:45pm',f:'CS45',i:'Alex'},
+    ],
+    25:[
+      {t:'7:30am',f:'CS45',i:'Erin'},
+      {t:'8:30am',f:'ALT',i:'Jennifer'},
+      {t:'9:45am',f:'PS',i:'Teri'},
+      {t:'11:00am',f:'CS',i:'OPEN',open:true},
+    ],
+    26:[
+      {t:'7:30am',f:'CS45',i:'Stephanie H'},
+      {t:'8:30am',f:'SC60',i:'Stephanie H'},
+      {t:'9:45am',f:'CSCor',i:'Karie'},
+      {t:'11:00am',f:'STRETCH',i:'Karie'},
+      {t:'1:00pm',f:'VSHIIT',i:'Alex'},
+      {t:'4:30pm',f:'CS',i:'Jennifer'},
+    ],
+    27:[
+      {t:'5:30am',f:'LoCSStk',i:'Nicole'},
+      {t:'6:40am',f:'LoCS45',i:'Lisa'},
+      {t:'7:30am',f:'PS45',i:'Christina'},
+      {t:'8:30am',f:'LoCS',i:'Katy'},
+      {t:'9:45am',f:'CSStk',i:'Alexis'},
+      {t:'11:00am',f:'LoCSHIIT',i:'Colleen'},
+      {t:'4:30pm',f:'CSCor',i:'Karie'},
+      {t:'5:45pm',f:'SCHIIT',i:'Trisha'},
+      {t:'7:00pm',f:'CS',i:'Jennifer'},
+    ],
+    28:[
+      {t:'5:30am',f:'CS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Stephanie D'},
+      {t:'7:30am',f:'CS45',i:'Christina'},
+      {t:'8:30am',f:'CSStk',i:'Alexis'},
+      {t:'9:45am',f:'CS',i:'Teri'},
+      {t:'4:30pm',f:'CS',i:'Tori'},
+      {t:'5:45pm',f:'CS',i:'Danielle'},
+      {t:'7:00pm',f:'PSHIIT',i:'Erin'},
+    ],
+    29:[
+      {t:'5:30am',f:'CS',i:'OPEN',open:true},
+      {t:'6:40am',f:'LoSCHIIT45',i:'Lisa'},
+      {t:'7:30am',f:'LoCSStk45',i:'Nicole'},
+      {t:'8:30am',f:'CS',i:'Stephanie D'},
+      {t:'9:45am',f:'PSHIIT',i:'Jane'},
+      {t:'11:00am',f:'LoSCHIIT',i:'Katy'},
+      {t:'4:30pm',f:'CS',i:'Karie'},
+      {t:'5:45pm',f:'CSStk',i:'Tess'},
+      {t:'7:00pm',f:'CS45',i:'Trisha'},
+    ],
+    30:[
+      {t:'5:30am',f:'PS',i:'Christine M'},
+      {t:'6:40am',f:'CS45',i:'Danielle'},
+      {t:'7:30am',f:'SC45',i:'Danielle'},
+      {t:'8:30am',f:'PSHIIT',i:'Christina'},
+      {t:'9:45am',f:'CS',i:'Jane'},
+      {t:'4:30pm',f:'CS',i:'Cece'},
+      {t:'5:45pm',f:'CS',i:'Trisha'},
+      {t:'7:00pm',f:'SC60',i:'Erin'},
+    ],
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  SMS CONFIG — T-Mobile gateway (no backend needed)
+//  Messages arrive as texts to coordinator's phone.
+//  To add instructors later: add their number@tmomail.net (T-Mobile)
+//  or number@vtext.com (Verizon) / number@txt.att.net (AT&T)
+// ═══════════════════════════════════════════════════════════════
+const COORDINATOR_SMS = '2487972617@tmomail.net';
+
+// When you're ready to notify individual instructors,
+// add entries here: 'InstructorName': 'number@carrier-gateway.net'
+const INSTRUCTOR_SMS = {
+  // 'Trisha': '2481234567@tmomail.net',
+};
+function getSmsAddr(name) { return INSTRUCTOR_SMS[name] || COORDINATOR_SMS; }
+
+// App URL — update this when the app is hosted somewhere permanent
+const APP_URL = 'https://claude.ai/artifacts';
+
+function isUrgent(dateKey) {
+  // Returns true if the class date is today or tomorrow
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const fmt = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  return dateKey === fmt(today) || dateKey === fmt(tomorrow);
+}
+
+function sendSmsNotification(type, data) {
+  const urgent = data.dateKey && isUrgent(data.dateKey);
+  let msg = '';
+  if (type === 'sub_requested') {
+    const prefix = urgent ? '🚨 URGENT — ' : '';
+    msg = `${prefix}JRO SUB NEEDED: ${data.requester} needs sub for ${data.format} ${data.date} ${data.time}. ${APP_URL}`;
+  } else if (type === 'sub_claimed') {
+    msg = `JRO SUB FILLED: ${data.claimedBy} will cover ${data.requester}'s ${data.format} on ${data.date} ${data.time}.${data.isSwap?' Swap pending approval.':''} ${APP_URL}`;
+  } else if (type === 'swap_confirmed') {
+    msg = `JRO SWAP CONFIRMED: ${data.format} on ${data.date} ${data.time} — approved by coordinator. ${APP_URL}`;
+  }
+  // Trim to 160 chars to stay within SMS limit
+  if (msg.length > 160) msg = msg.slice(0, 157) + '…';
+  const mailto = `mailto:${COORDINATOR_SMS}?subject=JRO&body=${encodeURIComponent(msg)}`;
+  window.open(mailto, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let currentUser = '', isCoord = false;
+let curMonth = 3, curYear = 2026;
+let subFilter = 'all';
+let pendingSR = null; // pending sub request class
+let pendingClaimId = null;
+let notifications = [];
+let glofoxItems = [
+  {id:1,text:'Update Thu Mar 12 7:30am ALT45 — find instructor',done:false},
+  {id:2,text:'Update Wed Mar 18 4:30pm CS — assign Staci (sub for Karie)',done:true},
+  {id:3,text:'Confirm Apr 4 8:30am CS — no instructor assigned',done:false},
+  {id:4,text:'Confirm Apr 18 opens — ALT45 + ALT need instructors',done:false},
+];
+
+let subRequests = [
+  {id:1,date:'Thu Mar 12',dateKey:'2026-3-12',time:'7:30am',format:'ALT45',requester:'Trisha',status:'open',reason:'Out of town / travel',notes:'Alternate format — someone comfortable with ALT preferred',swapOffered:false,swapClass:null,claimedBy:null,createdAt:Date.now()-172800000},
+  {id:2,date:'Wed Mar 18',dateKey:'2026-3-18',time:'4:30pm',format:'CS',requester:'Karie',status:'covered',reason:'Family obligation',notes:'',swapOffered:false,swapClass:null,claimedBy:'Staci',createdAt:Date.now()-432000000},
+];
+let nextId = 3;
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const FDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getMo(y,m){return MONTHS[m-1];}
+function getSMo(m){return MONTHS[m-1].slice(0,3);}
+function getDow(y,m,d){return new Date(y,m-1,d).getDay();}
+function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
+
+function getClasses(y,m,d){
+  const raw=(SCHEDULE[`${y}-${m}`]||{})[d]||[];
+  return raw.map(c=>{
+    // check if there's a sub request override
+    const req=subRequests.find(r=>r.dateKey===`${y}-${m}-${d}`&&r.time===c.t&&r.status!=='covered');
+    const cov=subRequests.find(r=>r.dateKey===`${y}-${m}-${d}`&&r.time===c.t&&r.status==='covered');
+    if(req) return {...c,open:true,subReqId:req.id,pending:req.status==='pending'};
+    if(cov) return {...c,open:false,covered:true,coveredBy:cov.claimedBy,subReqId:cov.id};
+    return {...c};
+  });
+}
+
+function getMyClasses(y,m){
+  if(!currentUser||isCoord) return [];
+  const mo=SCHEDULE[`${y}-${m}`]||{};
+  const out=[];
+  Object.entries(mo).forEach(([d,cls])=>{
+    cls.forEach(c=>{if(c.i===currentUser) out.push({...c,day:+d,dateKey:`${y}-${m}-${d}`});});
+  });
+  return out.sort((a,b)=>a.day-b.day||a.t.localeCompare(b.t));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  IDENTITY
+// ═══════════════════════════════════════════════════════════════
+function setIdentity(v){
+  currentUser=v; isCoord=(v==='__coord__');
+  const lbl=document.getElementById('roleLabel');
+  if(!v){lbl.textContent='Select name above';lbl.className='role-instr';}
+  else if(isCoord){lbl.textContent='📋 Coordinator';lbl.className='role-coord';}
+  else{lbl.textContent='👤 '+v;lbl.className='role-instr';}
+  document.querySelectorAll('.coord-only').forEach(el=>el.style.display=isCoord?'':'none');
+  renderCalendar(); renderMyClasses(); refreshBadge(); refreshNotifs();
+}
+function needId(){
+  if(!currentUser){showToast('Select your name at the top first','err');document.getElementById('whoSelect').focus();return false;}
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════════════════════════
+function renderCalendar(){
+  const grid=document.getElementById('calGrid');
+  const firstDow=getDow(curYear,curMonth,1);
+  const daysInMo=getDaysInMonth(curYear,curMonth);
+  document.getElementById('calTitle').textContent=`${getMo(curYear,curMonth)} ${curYear}`;
+  document.getElementById('calMonthLbl').textContent=`${getMo(curYear,curMonth).toUpperCase()} ${curYear}`;
+  const today=new Date();
+
+  let html=DAYS.map(d=>`<div class="day-lbl">${d}</div>`).join('');
+  for(let i=0;i<firstDow;i++) html+=`<div class="day-cell faded"></div>`;
+
+  const myDays=new Set(getMyClasses(curYear,curMonth).map(c=>c.day));
+
+  for(let d=1;d<=daysInMo;d++){
+    const cls=getClasses(curYear,curMonth,d);
+    const hasOpen=cls.some(c=>c.open||c.pending);
+    const isToday=today.getFullYear()===curYear&&today.getMonth()+1===curMonth&&today.getDate()===d;
+    const isMine=myDays.has(d);
+    const pills=cls.map(c=>{
+      let pcls='cp-normal';
+      if(c.i===currentUser) pcls='cp-mine';
+      else if(c.covered) pcls='cp-covered';
+      else if(c.open||c.pending) pcls='cp-open';
+      const label=`${c.t} ${c.f}`;
+      return `<span class="cp ${pcls}">${label}</span>`;
+    }).join('');
+    html+=`<div class="day-cell ${isToday?'today':''} ${hasOpen?'has-open':''}" onclick="openDay(${d})">
+      <div class="day-num">${d}${isMine?'<span style="color:var(--pink);margin-left:2px;">•</span>':''}</div>
+      ${pills}
+    </div>`;
+  }
+  grid.innerHTML=html;
+}
+
+function changeMonth(dir){
+  curMonth+=dir;
+  if(curMonth>12){curMonth=1;curYear++;}
+  if(curMonth<1){curMonth=12;curYear--;}
+  renderCalendar();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DAY MODAL
+// ═══════════════════════════════════════════════════════════════
+function openDay(d){
+  const cls=getClasses(curYear,curMonth,d);
+  const dow=FDAYS[getDow(curYear,curMonth,d)];
+  document.getElementById('mTitle').textContent=`${dow}, ${getMo(curYear,curMonth)} ${d}`;
+  document.getElementById('mSub').textContent=`${cls.length} class${cls.length!==1?'es':''} scheduled`;
+  let html='';
+  cls.forEach(c=>{
+    const isMine=c.i===currentUser;
+    let wCls='',wLbl=c.i,btn='';
+    if(c.covered){wCls='cov';wLbl=`✓ ${c.coveredBy} (sub for ${c.i})`;}
+    else if(c.open||c.pending){
+      wCls='nsub';
+      wLbl=c.pending?'⏳ Pending sub':'⚠ Needs Sub';
+      if(currentUser&&!isCoord&&c.i!==currentUser){
+        btn=`<button class="chip chip-claim" onclick="openClaimModal(${c.subReqId})">Claim</button>`;
+      }
+    }
+    else if(isMine){
+      wCls='mine';wLbl=`${c.i} (you)`;
+      const ex=subRequests.find(r=>r.dateKey===`${curYear}-${curMonth}-${d}`&&r.time===c.t&&r.status!=='covered');
+      btn=ex?`<span style="font-size:10px;color:var(--orange);font-weight:700;">Requested</span>`:
+        `<button class="chip chip-sub" onclick="openSubReqModal(${d},'${c.t}','${c.f}')">Need Sub</button>`;
+    }
+    html+=`<div class="cli ${(c.open||c.pending)?'open-slot':''} ${isMine?'my-slot':''}">
+      <div class="cli-l">
+        <div class="cli-time">${c.t}</div>
+        <div class="cli-fmt">${c.f}</div>
+        <div class="cli-who ${wCls}">${wLbl}</div>
+      </div>${btn}
+    </div>`;
+  });
+  document.getElementById('mBody').innerHTML=html||'<div class="empty"><div class="ei">📭</div><p>No classes</p></div>';
+  openMo('dayModal');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SUB REQUEST — submitting
+// ═══════════════════════════════════════════════════════════════
+function openSubReqModal(d,time,fmt){
+  if(!needId()) return;
+  pendingSR={d,time,fmt,dateKey:`${curYear}-${curMonth}-${d}`};
+  document.getElementById('srInfo').textContent=`${getSMo(curMonth)} ${d} · ${time} · ${fmt}`;
+  document.getElementById('srReason').value='';
+  document.getElementById('srNotes').value='';
+  document.getElementById('srSwapChoice').value='no';
+  document.getElementById('swapPicker').style.display='none';
+  // swap options = my other classes
+  const myC=getMyClasses(curYear,curMonth).filter(c=>!(c.day===d&&c.t===time));
+  document.getElementById('swapOptions').innerHTML=myC.length
+    ? myC.map(c=>`<div class="swap-pick" onclick="pickSwap(this)" data-dk="${c.dateKey}" data-t="${c.t}" data-f="${c.f}">
+        <span>${getSMo(curMonth)} ${c.day} · ${c.t}</span><small>${c.f}</small>
+      </div>`).join('')
+    : '<p style="font-size:12px;color:var(--muted);">No other classes to offer</p>';
+  closeMo('dayModal');
+  openMo('subReqMo');
+}
+
+function toggleSwapPicker(){
+  document.getElementById('swapPicker').style.display=
+    document.getElementById('srSwapChoice').value==='yes'?'block':'none';
+}
+function pickSwap(el){
+  document.querySelectorAll('.swap-pick').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+async function submitSubReq(){
+  if(!needId()) return;
+  const reason=document.getElementById('srReason').value;
+  if(!reason){showToast('Please select a reason','err');return;}
+  const notes=document.getElementById('srNotes').value.trim();
+  const wantSwap=document.getElementById('srSwapChoice').value==='yes';
+  let swapClass=null;
+  if(wantSwap){
+    const p=document.querySelector('.swap-pick.sel');
+    if(!p){showToast('Choose a class to swap or select no swap','err');return;}
+    swapClass={dateKey:p.dataset.dk,time:p.dataset.t,format:p.dataset.f};
+  }
+  const req={
+    id:nextId++,
+    date:`${DAYS[getDow(curYear,curMonth,pendingSR.d)]} ${getSMo(curMonth)} ${pendingSR.d}`,
+    dateKey:pendingSR.dateKey,
+    time:pendingSR.time,
+    format:pendingSR.fmt,
+    requester:currentUser,
+    status:'open',
+    reason,notes,
+    swapOffered:wantSwap,swapClass,
+    claimedBy:null,createdAt:Date.now()
+  };
+  subRequests.push(req);
+  addNotif('or','📤',`${currentUser} needs a sub`,`${pendingSR.time} ${pendingSR.fmt} — ${getSMo(curMonth)} ${pendingSR.d}`);
+
+  // Send SMS notification via T-Mobile gateway
+  sendSmsNotification('sub_requested',{
+    requester:currentUser,format:pendingSR.fmt,
+    date:`${getSMo(curMonth)} ${pendingSR.d}`,time:pendingSR.time,
+    dateKey:pendingSR.dateKey
+  });
+
+  closeMo('subReqMo');
+  refreshBadge();renderCalendar();renderMyClasses();
+  showToast('✅ Sub request submitted! Text notification sent.','ok');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SUB REQUEST — claiming
+// ═══════════════════════════════════════════════════════════════
+function openClaimModal(reqId){
+  if(!needId()) return;
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  pendingClaimId=reqId;
+  document.getElementById('clTitle').textContent=req.swapOffered?'Accept Swap or Cover':'Claim This Class';
+  document.getElementById('clInfo').textContent=`${req.date} · ${req.time} · ${req.format} — by ${req.requester}`;
+  let html=`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">${req.reason}${req.notes?' — '+req.notes:''}</p>`;
+  if(req.swapOffered&&req.swapClass){
+    html+=`<div class="swap-box" style="margin-bottom:14px;">
+      <strong>🔄 Swap offered:</strong> ${req.requester} will cover your 
+      <strong>${req.swapClass.time} ${req.swapClass.format}</strong> in exchange.
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;">
+      <button class="bsm bg" onclick="doClaim(${reqId},true)">✅ Accept Swap</button>
+      <button class="bsm bb" onclick="doClaim(${reqId},false)">Cover Without Swap</button>
+      <button class="bsm bgh" onclick="closeMo('claimMo')">Cancel</button>
+    </div>`;
+  } else {
+    html+=`<div style="display:flex;gap:7px;flex-wrap:wrap;">
+      <button class="bsm bg" onclick="doClaim(${reqId},false)">✅ I'll cover this class</button>
+      <button class="bsm bgh" onclick="closeMo('claimMo')">Cancel</button>
+    </div>`;
+  }
+  document.getElementById('clBody').innerHTML=html;
+  closeMo('dayModal');
+  openMo('claimMo');
+}
+
+function doClaim(reqId,isSwap){
+  if(!needId()) return;
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  // Update state
+  if(isSwap){
+    req.status='pending';req.claimedBy=currentUser;
+    addNotif('bl','🔄',`${currentUser} offered a swap`,`${req.time} ${req.format} on ${req.date}`);
+  } else {
+    req.status='covered';req.claimedBy=currentUser;
+    addNotif('gr','✅',`${currentUser} will cover class`,`${req.time} ${req.format} on ${req.date}`);
+  }
+  closeMo('claimMo');
+  refreshBadge();renderCalendar();renderMyClasses();
+  if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
+
+  // Send SMS notification
+  sendSmsNotification('sub_claimed',{
+    claimedBy:currentUser,requester:req.requester,
+    format:req.format,date:req.date,time:req.time,isSwap
+  });
+  showToast(`✅ ${isSwap?'Swap offered':'Class claimed'}! Text notification sent.`,'ok');
+}
+
+function confirmSwap(reqId){
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  req.status='covered';
+  addNotif('gr','✅','Swap confirmed by coordinator',`${req.time} ${req.format} on ${req.date}`);
+  refreshBadge();renderCalendar();renderSubList();renderDash();
+  showToast('✅ Swap confirmed!','ok');
+}
+function declineSwap(reqId){
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+  req.status='open';req.claimedBy=null;
+  renderSubList();renderDash();
+  showToast('Swap declined — request back to open.','');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SUB LIST
+// ═══════════════════════════════════════════════════════════════
+function renderSubList(){
+  let list=[...subRequests].sort((a,b)=>b.createdAt-a.createdAt);
+  if(subFilter==='open') list=list.filter(r=>r.status==='open');
+  else if(subFilter==='pending') list=list.filter(r=>r.status==='pending');
+  else if(subFilter==='covered') list=list.filter(r=>r.status==='covered');
+  else if(subFilter==='mine') list=list.filter(r=>r.requester===currentUser||r.claimedBy===currentUser);
+
+  if(!list.length){
+    document.getElementById('subList').innerHTML=`<div class="empty"><div class="ei">🎉</div><p>No requests here</p></div>`;
+    updateFilterCounts(); return;
+  }
+
+  const html=list.map(r=>{
+    const isMe=r.requester===currentUser;
+    const bMap={open:'sb-open',pending:'sb-pending',covered:'sb-covered'};
+    const lMap={open:'🟠 Open',pending:'🔄 Pending Swap',covered:'🟢 Covered'};
+    let acts='';
+    if(r.status==='open'&&!isMe&&currentUser&&!isCoord)
+      acts=`<button class="bsm bg" onclick="openClaimModal(${r.id})">✅ Claim</button>`;
+    if(r.status==='pending'&&isCoord)
+      acts=`<button class="bsm bg" onclick="confirmSwap(${r.id})">✅ Confirm</button>
+        <button class="bsm br" onclick="declineSwap(${r.id})">✗ Decline</button>`;
+    if(r.status==='open'&&isMe)
+      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>`;
+    if(r.status==='covered')
+      acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
+    const swapNote=r.swapOffered&&r.swapClass
+      ?`<div class="swap-box" style="margin-top:7px;margin-bottom:7px;"><strong>🔄 Swap offered:</strong> ${r.swapClass.time} ${r.swapClass.format}</div>`:''
+    return `<div class="rcard s-${r.status} ${isMe?'s-mine':''}">
+      <div class="rc-top">
+        <div><div class="rc-date">${r.date}</div><div class="rc-time-lbl">${r.time}</div></div>
+        <div class="sbadge ${bMap[r.status]}">${lMap[r.status]}</div>
+      </div>
+      <div class="rc-meta">
+        <div class="rc-mi"><div class="rc-ml">Format</div><div class="rc-mv">${r.format}</div></div>
+        <div class="rc-mi"><div class="rc-ml">Requested by</div><div class="rc-mv">${r.requester}</div></div>
+        <div class="rc-mi"><div class="rc-ml">Reason</div><div class="rc-mv">${r.reason}</div></div>
+        ${r.claimedBy?`<div class="rc-mi"><div class="rc-ml">Claimed by</div><div class="rc-mv">${r.claimedBy}</div></div>`:''}
+      </div>
+      ${r.notes?`<div class="rc-notes">${r.notes}</div>`:''}
+      ${swapNote}
+      <div class="rc-acts">${acts}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('subList').innerHTML=html;
+  updateFilterCounts();
+}
+
+function updateFilterCounts(){
+  const c={all:subRequests.length,
+    open:subRequests.filter(r=>r.status==='open').length,
+    pending:subRequests.filter(r=>r.status==='pending').length,
+    covered:subRequests.filter(r=>r.status==='covered').length,
+    mine:subRequests.filter(r=>r.requester===currentUser||r.claimedBy===currentUser).length};
+  const bar=document.querySelector('.filter-bar');
+  if(bar){
+    bar.querySelectorAll('.fchip')[0].textContent=`All (${c.all})`;
+    bar.querySelectorAll('.fchip')[1].textContent=`🟠 Open (${c.open})`;
+    bar.querySelectorAll('.fchip')[2].textContent=`🟡 Pending (${c.pending})`;
+    bar.querySelectorAll('.fchip')[3].textContent=`🟢 Covered (${c.covered})`;
+    bar.querySelectorAll('.fchip')[4].textContent=`👤 Mine (${c.mine})`;
+  }
+}
+
+function filterSubs(f,btn){
+  subFilter=f;
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  renderSubList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MY CLASSES
+// ═══════════════════════════════════════════════════════════════
+function renderMyClasses(){
+  const list=document.getElementById('myList');
+  if(!currentUser||isCoord){list.innerHTML='<div class="empty"><div class="ei">👆</div><p>Select your name above</p></div>';return;}
+  const cls=getMyClasses(curYear,curMonth);
+  if(!cls.length){list.innerHTML=`<div class="empty"><div class="ei">📭</div><p>No classes for ${currentUser} in ${getMo(curYear,curMonth)}</p></div>`;return;}
+  list.innerHTML=cls.map(c=>{
+    const req=subRequests.find(r=>r.dateKey===c.dateKey&&r.time===c.t&&r.requester===currentUser);
+    let statusEl='',rowCls='';
+    if(req){
+      rowCls='sub-active';
+      statusEl=`<div class="mc-status">${req.status==='covered'?`✓ Covered by ${req.claimedBy}`:req.status==='pending'?'🔄 Swap pending':' ⏳ Awaiting sub'}</div>`;
+    }
+    const btn=req
+      ?(req.status==='covered'?'':`<span style="font-size:11px;color:var(--orange);font-weight:700;">Requested</span>`)
+      :`<button class="bsm" style="background:var(--orange-dim);color:var(--orange);" onclick="openSubReqModal(${c.day},'${c.t}','${c.f}')">Need Sub</button>`;
+    return `<div class="mcrow ${rowCls}">
+      <div class="mc-l">
+        <div class="mc-date">${DAYS[getDow(curYear,curMonth,c.day)]} ${getSMo(curMonth)} ${c.day} · ${c.t}</div>
+        <div class="mc-fmt">${c.f}</div>${statusEl}
+      </div>${btn}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderDash(){
+  const open=subRequests.filter(r=>r.status==='open').length;
+  const pend=subRequests.filter(r=>r.status==='pending').length;
+  const cov=subRequests.filter(r=>r.status==='covered').length;
+  const gPend=glofoxItems.filter(g=>!g.done).length;
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-num orange">${open}</div><div class="stat-lbl">Open sub requests</div></div>
+    <div class="stat-card"><div class="stat-num blue">${pend}</div><div class="stat-lbl">Pending swaps</div></div>
+    <div class="stat-card"><div class="stat-num green">${cov}</div><div class="stat-lbl">Covered this month</div></div>
+    <div class="stat-card"><div class="stat-num pink">${gPend}</div><div class="stat-lbl">Glofox updates pending</div></div>`;
+
+  const pends=subRequests.filter(r=>r.status==='pending');
+  document.getElementById('pendingApprovals').innerHTML=pends.length
+    ? pends.map(r=>`<div class="rcard s-pending">
+        <div class="rc-top"><div><div class="rc-date">${r.date}</div><div class="rc-time-lbl">${r.time} · ${r.format}</div></div>
+        <div class="sbadge sb-pending">🔄 Swap Needs Approval</div></div>
+        <div class="rc-meta">
+          <div class="rc-mi"><div class="rc-ml">Requester</div><div class="rc-mv">${r.requester}</div></div>
+          <div class="rc-mi"><div class="rc-ml">Claimed by</div><div class="rc-mv">${r.claimedBy}</div></div>
+        </div>
+        ${r.swapClass?`<div class="swap-box"><strong>Swap:</strong> ${r.requester} covers ${r.claimedBy}'s ${r.swapClass.time} ${r.swapClass.format}</div>`:''}
+        <div class="rc-acts" style="margin-top:10px;">
+          <button class="bsm bg" onclick="confirmSwap(${r.id})">✅ Confirm Swap</button>
+          <button class="bsm br" onclick="declineSwap(${r.id})">✗ Decline</button>
+        </div></div>`).join('')
+    : '<div class="empty" style="padding:16px;"><div class="ei">✅</div><p>No pending actions</p></div>';
+
+  // glofox
+  const autoG=subRequests.filter(r=>r.status!=='covered')
+    .map(r=>({id:'a'+r.id,text:`Update ${r.date} ${r.time} ${r.format} — ${r.status==='pending'?'confirm '+r.claimedBy:'find sub'}`,done:false}));
+  document.getElementById('glofoxList').innerHTML=[...glofoxItems,...autoG].map(u=>`
+    <div class="gitem">
+      <div class="gcheck ${u.done?'done':''}" onclick="${typeof u.id==='number'?'toggleG('+u.id+')':''}">${u.done?'✓':''}</div>
+      <div class="gtxt ${u.done?'done':''}">${u.text}</div>
+    </div>`).join('');
+
+  // FB post
+  const openR=subRequests.filter(r=>r.status!=='covered');
+  let post=`📅 CLASS SCHEDULE UPDATE — ${getMo(curYear,curMonth)} ${curYear}\n\n`;
+  if(openR.length){post+=`⚠️ SUBS NEEDED:\n`;openR.forEach(r=>post+=`• ${r.date} ${r.time} — ${r.format}\n`);post+='\n';}
+  const covR=subRequests.filter(r=>r.status==='covered').slice(-4);
+  if(covR.length){post+=`✅ COVERED:\n`;covR.forEach(r=>post+=`• ${r.date} ${r.time} — ${r.format} · ${r.claimedBy} ✓\n`);post+='\n';}
+  post+=`Come dance with us! 💃🎶`;
+  document.getElementById('fbBody').textContent=post;
+}
+
+function toggleG(id){
+  const g=glofoxItems.find(x=>x.id===id);if(!g)return;
+  g.done=!g.done;renderDash();showToast(g.done?'✅ Marked complete':'Marked incomplete',g.done?'ok':'');
+}
+function copyFB(){navigator.clipboard.writeText(document.getElementById('fbBody').textContent);showToast('📋 Copied!','ok');}
+
+// ═══════════════════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+function addNotif(col,icon,title,sub){
+  notifications.unshift({col,icon,title,sub,id:Date.now()});
+  refreshNotifs();
+}
+function refreshNotifs(){
+  const mine=isCoord?notifications:notifications.filter(n=>n.title.includes(currentUser)||n.sub.includes(currentUser));
+  const dot=document.getElementById('notifDot');
+  dot.style.display=mine.length?'block':'none';
+  document.getElementById('nlist').innerHTML=mine.length
+    ? mine.map(n=>`<div class="nitem"><div class="nico ${n.col}">${n.icon}</div><div class="ntxt"><p>${n.title}</p><small>${n.sub}</small></div></div>`).join('')
+    : '<div class="nempty">No new notifications</div>';
+}
+function toggleNotifs(){document.getElementById('npanel').classList.toggle('open');}
+function clearNotifs(){notifications=[];refreshNotifs();document.getElementById('npanel').classList.remove('open');}
+function refreshBadge(){
+  const n=subRequests.filter(r=>r.status==='open').length;
+  const b=document.getElementById('subBadge');b.textContent=n;b.classList.toggle('on',n>0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAV / MODALS
+// ═══════════════════════════════════════════════════════════════
+function showView(v,btn){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(btn)btn.classList.add('active');
+  document.getElementById('npanel').classList.remove('open');
+  if(v==='subs')renderSubList();
+  if(v==='my')renderMyClasses();
+  if(v==='dash')renderDash();
+}
+function openMo(id){document.getElementById(id).classList.add('open');}
+function closeMo(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('npanel');
+  if(p.classList.contains('open')&&!p.contains(e.target)&&!document.getElementById('notifBtn').contains(e.target))
+    p.classList.remove('open');
+  ['dayModal','subReqMo','claimMo'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el.classList.contains('open')&&e.target===el)closeMo(id);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════════
+let tt;
+function showToast(msg,type){
+  clearTimeout(tt);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast ${type||''} show`;
+  tt=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// INIT
+renderCalendar();refreshBadge();refreshNotifs();
+</script>
+</body>
+</html>
