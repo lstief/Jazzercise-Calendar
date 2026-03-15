@@ -1622,15 +1622,19 @@ function openClaimModal(reqId){
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="border:1.5px solid var(--green);border-radius:9px;padding:12px 14px;background:var(--green-dim);">
         <div style="font-size:12px;font-weight:700;color:#1a9e6a;margin-bottom:6px;">✅ Who is covering?</div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">
-          <button class="bsm bg" onclick="doClaim(${reqId})">I'll cover it (${currentUser})</button>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;">
+            <input type="radio" name="coverWho" value="self" checked onchange="toggleAssignSelect(false)"> ${currentUser}
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;">
+            <input type="radio" name="coverWho" value="other" onchange="toggleAssignSelect(true)"> Someone else
+          </label>
         </div>
-        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
-          <select id="assignSelect" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
-            <option value="">Assign someone else…</option>
+        <div id="assignSelectWrap" style="display:none;margin-top:8px;">
+          <select id="assignSelect" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;">
+            <option value="">Select instructor…</option>
             ${otherOptions}
           </select>
-          <button class="bsm bb" onclick="doAssign(${reqId})">Assign</button>
         </div>
       </div>
       <div style="border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;">
@@ -1646,11 +1650,26 @@ function openClaimModal(reqId){
         <div id="classChangesList" style="display:flex;flex-direction:column;gap:6px;"></div>
         <button class="bsm bb" style="margin-top:8px;width:100%;" onclick="addClassChangeRow()">+ Add a class change</button>
       </div>
-      <button class="bsm bgh" onclick="closeMo('claimMo')">Cancel</button>
+      <button class="btn-pri" onclick="submitClaim(${reqId})">✅ Save &amp; Confirm Coverage</button>
+      <button class="bsm bgh" style="width:100%;padding:10px;" onclick="closeMo('claimMo')">Cancel</button>
     </div>`;
   document.getElementById('clBody').innerHTML=html;
   closeMo('dayModal');
   openMo('claimMo');
+}
+
+function toggleAssignSelect(show){
+  const wrap=document.getElementById('assignSelectWrap');
+  if(wrap) wrap.style.display=show?'block':'none';
+}
+
+function submitClaim(reqId){
+  const isSelf=document.querySelector('input[name="coverWho"]:checked').value==='self';
+  if(isSelf){
+    doClaim(reqId);
+  } else {
+    doAssign(reqId);
+  }
 }
 
 function removeChangeRow(idx){var el=document.getElementById('ccr-'+idx);if(el)el.remove();}
