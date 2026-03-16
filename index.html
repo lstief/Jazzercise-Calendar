@@ -1772,66 +1772,6 @@ function cancelSubRequest(reqId){
   showToast('Sub request cancelled.','ok');
 }
 
-function cancelCoveredRequest(reqId){
-  if(!confirm('Cancel this covered request? This will revert all class changes and notify everyone involved.')) return;
-  const req=subRequests.find(r=>r.id===reqId);
-  if(!req) return;
-
-  // ── Revert the main class back to original instructor/format ──
-  const [yr,mo,dy]=req.dateKey.split('-').map(Number);
-  const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
-  const c=cls.find(x=>x.t===req.time);
-  if(c){
-    c.i=req.requester; // restore original instructor
-    if(req.newFormat) c.f=req.format; // restore original format
-    delete c.covered; delete c.coveredBy; delete c.open;
-  }
-
-  // ── Revert cascading class changes ──
-  let changes=[];
-  if(req.swapClass){
-    if(typeof req.swapClass==='string'&&req.swapClass.startsWith('['))
-      try{changes=JSON.parse(req.swapClass);}catch(e){}
-    else if(Array.isArray(req.swapClass)) changes=req.swapClass;
-  }
-  changes.forEach(ch=>{
-    const parts=ch.dateKey.split('-').map(Number);
-    const chCls=(SCHEDULE[`${parts[0]}-${parts[1]}`]||{})[parts[2]]||[];
-    const chC=chCls.find(x=>x.t===ch.time);
-    if(chC){
-      // Restore original instructor from schedule (the one before the change)
-      // We stored the new instructor in ch.instructor — revert by restoring the original
-      // Original is stored in SCHEDULE so we just remove the override
-      delete chC.covered; delete chC.coveredBy;
-      // Reset format if it was changed
-      if(ch.format) chC.f=ch.originalFormat||ch.format;
-    }
-  });
-
-  // ── Update state ──
-  req.status='cancelled';
-  dbUpdate({id:req.id, status:'cancelled'});
-
-  // ── Notify everyone involved ──
-  const involved=new Set([req.requester, req.claimedBy]);
-  changes.forEach(ch=>{ if(ch.instructor) involved.add(ch.instructor); });
-  involved.forEach(person=>{
-    if(person) sendSmsNotification('sub_cancelled',{
-      requester:req.requester,
-      claimedBy:req.claimedBy,
-      format:req.format,
-      date:req.date,
-      time:req.time,
-      cancelledBy:currentUser,
-      person:person
-    });
-  });
-
-  refreshBadge();renderCalendar();renderMyClasses();
-  if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
-  if(document.getElementById('view-dash').classList.contains('active')) renderDash();
-  showToast('Coverage cancelled — calendar reverted.','ok');
-}
 
 function saveNewFormat(reqId){
   const input=document.getElementById('nf-'+reqId);
@@ -1891,10 +1831,7 @@ function renderSubList(){
       acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>
         <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
 
-    if(r.status==='covered'&&(isMe||isCoord))
-      acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>
-        <button class="bsm br" onclick="cancelCoveredRequest(${r.id})">✕ Cancel</button>`;
-    if(r.status==='covered'&&!isMe&&!isCoord)
+    if(r.status==='covered')
       acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
     if(r.status==='cancelled')
       acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">⛔ Cancelled</span>`;
