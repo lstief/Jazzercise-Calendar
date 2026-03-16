@@ -361,7 +361,7 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
     <option value="Danielle">Danielle</option>
     <option value="Erin">Erin</option>
     <option value="Jane">Jane</option>
-    <option value="Jen">Jen</option>
+    <option value="Jennifer">Jennifer</option>
     <option value="Karie">Karie</option>
     <option value="Katy">Katy</option>
     <option value="Lisa">Lisa</option>
@@ -1558,7 +1558,7 @@ async function submitSubReq(){
 const FORMAT_OPTIONS=['CS','CSHIIT','CS45','CSHIIT45','PS','PSHIIT','PS45','PSHIIT45','Sculpt','SculptHIIT','Sculpt45','SculptHIIT45','Stretch','LoCS','LoCSHIIT','LoCS45','LoCSHIIT45','LoPS','LoPSHIIT','LoPS45','LoPSHIIT45','LoSculptHIIT','VSHIIT','VSHIIT45','LoVSHIIT','LoVSHIIT45'];
 function fmtOptions(selected){return '<option value="">— No change —</option>'+FORMAT_OPTIONS.map(f=>'<option value="'+f+'"'+(f===selected?' selected':'')+'>'+f+'</option>').join('');}
 
-const INSTRUCTORS=['Alex','Alexis','Cece','Christina','Christine M','Colleen','Danielle','Erin','Jane','Jen','Karie','Katy','Lisa','Nadia','Nicole','Staci','Stephanie D','Stephanie H','Teri','Tess','Tori','Trisha'];
+const INSTRUCTORS=['Alex','Alexis','Cece','Christina','Christine M','Colleen','Danielle','Erin','Jane','Jennifer','Karie','Katy','Lisa','Nadia','Nicole','Staci','Stephanie D','Stephanie H','Teri','Tess','Tori','Trisha'];
 
 function buildInstructorSelect(id, exclude){
   return '<select id="'+id+'" style="flex:1;min-width:120px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:12px;outline:none;">'
