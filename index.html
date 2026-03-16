@@ -153,6 +153,7 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
 .rcard.s-open{border-left-color:var(--orange);}
 .rcard.s-pending{border-left-color:var(--yellow);}
 .rcard.s-covered{border-left-color:var(--green);}
+.rcard.s-cancelled{border-left-color:#ccc;opacity:.75;}
 .rcard.s-mine{border-left-color:var(--blue);}
 .rc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
 .rc-date{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.7px;}
@@ -161,6 +162,7 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
 .sb-open{background:var(--orange-dim);color:var(--orange);}
 .sb-pending{background:rgba(255,209,102,.2);color:#9e6a00;}
 .sb-covered{background:var(--green-dim);color:#1a9e6a;}
+.sb-cancelled{background:#f0f0f0;color:#888;}
 .sb-mine{background:var(--blue-dim);color:var(--blue);}
 .rc-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
 .rc-mi{display:flex;flex-direction:column;gap:1px;}
@@ -427,6 +429,7 @@ nav{background:var(--dark);padding:0 20px;display:flex;align-items:center;justif
     <button class="fchip" onclick="filterSubs('pending',this)">🟡 Pending</button>
     <button class="fchip" onclick="filterSubs('covered',this)">🟢 Covered</button>
     <button class="fchip" onclick="filterSubs('mine',this)">👤 Mine</button>
+    <button class="fchip" onclick="filterSubs('cancelled',this)">⛔ Cancelled</button>
   </div>
   <div id="subList"></div>
 </div>
@@ -1270,7 +1273,7 @@ async function loadSubRequests() {
     showLoadingBadge(true);
     const data = await dbGetAll();
     if (Array.isArray(data)) {
-      subRequests = data.filter(r=>r.status!=='cancelled').map(r=>({
+      subRequests = data.map(r=>({
         ...r,
         // Normalize dateKey: strip any ISO date conversion back to YYYY-M-D
         dateKey: normalizeKey(r.dateKey),
@@ -1761,14 +1764,73 @@ function cancelSubRequest(reqId){
   if(!confirm('Cancel this sub request?')) return;
   const req=subRequests.find(r=>r.id===reqId);
   if(!req) return;
-  // Remove from local array
-  subRequests=subRequests.filter(r=>r.id!==reqId);
-  // Mark as cancelled in sheet
+  req.status='cancelled';
   dbUpdate({id:req.id, status:'cancelled'});
   refreshBadge();renderCalendar();renderMyClasses();
   if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
   if(document.getElementById('view-dash').classList.contains('active')) renderDash();
   showToast('Sub request cancelled.','ok');
+}
+
+function cancelCoveredRequest(reqId){
+  if(!confirm('Cancel this covered request? This will revert all class changes and notify everyone involved.')) return;
+  const req=subRequests.find(r=>r.id===reqId);
+  if(!req) return;
+
+  // ── Revert the main class back to original instructor/format ──
+  const [yr,mo,dy]=req.dateKey.split('-').map(Number);
+  const cls=(SCHEDULE[`${yr}-${mo}`]||{})[dy]||[];
+  const c=cls.find(x=>x.t===req.time);
+  if(c){
+    c.i=req.requester; // restore original instructor
+    if(req.newFormat) c.f=req.format; // restore original format
+    delete c.covered; delete c.coveredBy; delete c.open;
+  }
+
+  // ── Revert cascading class changes ──
+  let changes=[];
+  if(req.swapClass){
+    if(typeof req.swapClass==='string'&&req.swapClass.startsWith('['))
+      try{changes=JSON.parse(req.swapClass);}catch(e){}
+    else if(Array.isArray(req.swapClass)) changes=req.swapClass;
+  }
+  changes.forEach(ch=>{
+    const parts=ch.dateKey.split('-').map(Number);
+    const chCls=(SCHEDULE[`${parts[0]}-${parts[1]}`]||{})[parts[2]]||[];
+    const chC=chCls.find(x=>x.t===ch.time);
+    if(chC){
+      // Restore original instructor from schedule (the one before the change)
+      // We stored the new instructor in ch.instructor — revert by restoring the original
+      // Original is stored in SCHEDULE so we just remove the override
+      delete chC.covered; delete chC.coveredBy;
+      // Reset format if it was changed
+      if(ch.format) chC.f=ch.originalFormat||ch.format;
+    }
+  });
+
+  // ── Update state ──
+  req.status='cancelled';
+  dbUpdate({id:req.id, status:'cancelled'});
+
+  // ── Notify everyone involved ──
+  const involved=new Set([req.requester, req.claimedBy]);
+  changes.forEach(ch=>{ if(ch.instructor) involved.add(ch.instructor); });
+  involved.forEach(person=>{
+    if(person) sendSmsNotification('sub_cancelled',{
+      requester:req.requester,
+      claimedBy:req.claimedBy,
+      format:req.format,
+      date:req.date,
+      time:req.time,
+      cancelledBy:currentUser,
+      person:person
+    });
+  });
+
+  refreshBadge();renderCalendar();renderMyClasses();
+  if(document.getElementById('view-subs').classList.contains('active')) renderSubList();
+  if(document.getElementById('view-dash').classList.contains('active')) renderDash();
+  showToast('Coverage cancelled — calendar reverted.','ok');
 }
 
 function saveNewFormat(reqId){
@@ -1804,7 +1866,8 @@ function renderSubList(){
   let list=[...subRequests].sort((a,b)=>b.createdAt-a.createdAt);
   // Never show past open requests in the default/open views
   if(subFilter==='open') list=list.filter(r=>r.status==='open'&&!isPastRequest(r));
-  else if(subFilter==='all') list=list.filter(r=>!(r.status==='open'&&isPastRequest(r)));
+  else if(subFilter==='cancelled') list=list.filter(r=>r.status==='cancelled');
+  else if(subFilter==='all') list=list.filter(r=>r.status!=='cancelled'&&!(r.status==='open'&&isPastRequest(r)));
   else if(subFilter==='pending') list=list.filter(r=>r.status==='pending');
   else if(subFilter==='covered') list=list.filter(r=>r.status==='covered');
   else if(subFilter==='mine') list=list.filter(r=>r.requester===currentUser||r.claimedBy===currentUser);
@@ -1816,8 +1879,8 @@ function renderSubList(){
 
   const html=list.map(r=>{
     const isMe=r.requester===currentUser;
-    const bMap={open:'sb-open',pending:'sb-pending',covered:'sb-covered'};
-    const lMap={open:'🟠 Open',pending:'🔄 Pending Swap',covered:'🟢 Covered'};
+    const bMap={open:'sb-open',pending:'sb-pending',covered:'sb-covered',cancelled:'sb-cancelled'};
+    const lMap={open:'🟠 Open',pending:'🔄 Pending Swap',covered:'🟢 Covered',cancelled:'⛔ Cancelled'};
     let acts='';
     if(r.status==='open'&&!isMe&&isUnlocked&&currentUser&&!isCoord)
       acts=`<button class="bsm bg" onclick="openClaimModal(${r.id})">✅ Claim</button>`;
@@ -1828,8 +1891,13 @@ function renderSubList(){
       acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">Awaiting coverage</span>
         <button class="bsm br" onclick="cancelSubRequest(${r.id})">✕ Cancel</button>`;
 
-    if(r.status==='covered')
+    if(r.status==='covered'&&(isMe||isCoord))
+      acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>
+        <button class="bsm br" onclick="cancelCoveredRequest(${r.id})">✕ Cancel</button>`;
+    if(r.status==='covered'&&!isMe&&!isCoord)
       acts=`<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Covered by ${r.claimedBy}</span>`;
+    if(r.status==='cancelled')
+      acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">⛔ Cancelled</span>`;
     // Build class changes section
     let changesNote='';
     let parsedChanges=[];
@@ -1884,10 +1952,11 @@ function renderSubList(){
 }
 
 function updateFilterCounts(){
-  const c={all:subRequests.filter(r=>!(r.status==='open'&&isPastRequest(r))).length,
+  const c={all:subRequests.filter(r=>r.status!=='cancelled'&&!(r.status==='open'&&isPastRequest(r))).length,
     open:subRequests.filter(r=>r.status==='open'&&!isPastRequest(r)).length,
     pending:subRequests.filter(r=>r.status==='pending').length,
     covered:subRequests.filter(r=>r.status==='covered').length,
+    cancelled:subRequests.filter(r=>r.status==='cancelled').length,
     mine:subRequests.filter(r=>r.requester===currentUser||r.claimedBy===currentUser).length};
   const bar=document.querySelector('.filter-bar');
   if(bar){
@@ -1896,6 +1965,7 @@ function updateFilterCounts(){
     bar.querySelectorAll('.fchip')[2].textContent=`🟡 Pending (${c.pending})`;
     bar.querySelectorAll('.fchip')[3].textContent=`🟢 Covered (${c.covered})`;
     bar.querySelectorAll('.fchip')[4].textContent=`👤 Mine (${c.mine})`;
+    if(bar.querySelectorAll('.fchip')[5]) bar.querySelectorAll('.fchip')[5].textContent=`⛔ Cancelled (${c.cancelled})`;
   }
 }
 
