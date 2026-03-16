@@ -1330,7 +1330,7 @@ function getClasses(y,m,d){
   const raw=(SCHEDULE[`${y}-${m}`]||{})[d]||[];
   return raw.map(c=>{
     // check if there's a sub request override
-    const req=subRequests.find(r=>r.dateKey===`${y}-${m}-${d}`&&r.time===c.t&&r.status!=='covered');
+    const req=subRequests.find(r=>r.dateKey===`${y}-${m}-${d}`&&r.time===c.t&&r.status==='open');
     const cov=subRequests.find(r=>r.dateKey===`${y}-${m}-${d}`&&r.time===c.t&&r.status==='covered');
     if(req) return {...c,open:true,subReqId:req.id,pending:req.status==='pending'};
     if(cov) return {...c,open:false,covered:true,coveredBy:cov.claimedBy,subReqId:cov.id};
