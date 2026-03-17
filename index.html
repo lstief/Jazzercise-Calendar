@@ -1292,10 +1292,7 @@ async function loadSubRequests() {
       });
       // Apply cascading class changes stored in swapClass field
       subRequests.filter(r=>r.swapClass).forEach(r=>{
-        let changes=[];
-        if(typeof r.swapClass==='string'&&r.swapClass.startsWith('[')) try{changes=JSON.parse(r.swapClass);}catch(e){}
-        else if(Array.isArray(r.swapClass)) changes=r.swapClass;
-        applyClassChanges(changes);
+        applyClassChanges(parseSwapClass(r.swapClass));
       });
     }
   } catch(e) {
@@ -1691,6 +1688,16 @@ function collectClassChanges(){
   return changes;
 }
 
+function parseSwapClass(val){
+  if(!val) return [];
+  if(Array.isArray(val)) return val;
+  if(typeof val==='string'){
+    const s=val.trim();
+    if(s.startsWith('[')) try{return JSON.parse(s);}catch(e){}
+  }
+  return [];
+}
+
 function applyClassChanges(changes){
   changes.forEach(ch=>{
     const [yr,mo,dy]=ch.dateKey.split('-').map(Number);
@@ -1837,13 +1844,7 @@ function renderSubList(){
       acts=`<span style="font-size:11px;color:var(--muted);font-weight:600;">⛔ Cancelled</span>`;
     // Build class changes section
     let changesNote='';
-    let parsedChanges=[];
-    if(r.swapClass){
-      if(typeof r.swapClass==='string'&&r.swapClass.startsWith('['))
-        try{parsedChanges=JSON.parse(r.swapClass);}catch(e){}
-      else if(Array.isArray(r.swapClass))
-        parsedChanges=r.swapClass;
-    }
+    let parsedChanges=parseSwapClass(r.swapClass);
     if(parsedChanges.length){
       const rows=parsedChanges.map(ch=>{
         const parts=ch.dateKey.split('-');
